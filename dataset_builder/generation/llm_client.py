@@ -1,12 +1,12 @@
 """
-llm_client.py — Unified LLM interface with a full-fidelity Mock backend.
+llm_client.py — Unified LLM interface with Ollama backend and Mock fallback.
 
 Architecture
 ------------
-``LLMClient``     – thin wrapper around the OpenAI Chat Completions API.
+``OllamaClient``  – calls a locally running Ollama server (default model: qwen3:4b).
 ``MockLLMClient`` – deterministic synthetic generator that produces realistic
-                    QA / Extraction / Reasoning samples WITHOUT any API call.
-                    Used when OPENAI_API_KEY is absent or provider="mock".
+                    QA / Extraction / Reasoning samples WITHOUT any network call.
+                    Used when provider="mock".
 
 The mock backend deliberately introduces ~20 % defective samples so the
 downstream validation and filtering stages have interesting data to process.
@@ -43,22 +43,33 @@ class BaseLLMClient(ABC):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# OpenAI client
+# Ollama client
 # ─────────────────────────────────────────────────────────────────────────────
 
-class LLMClient(BaseLLMClient):
-    """OpenAI Chat Completions client."""
+class OllamaClient(BaseLLMClient):
+    """
+    Client for a locally running Ollama server.
 
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini", timeout: int = 30):
+    Requires the `ollama` Python package and Ollama to be running locally.
+    The model must already be pulled: ``ollama pull qwen3:4b``
+    """
+
+    def __init__(
+        self,
+        model: str = "qwen3:4b",
+        base_url: str = "http://localhost:11434",
+        timeout: int = 120,
+    ):
         try:
-            from openai import OpenAI  # type: ignore
+            import ollama as _ollama  # type: ignore
         except ImportError as exc:
             raise ImportError(
-                "openai package not installed. Run: pip install openai"
+                "ollama package not installed. Run: pip install ollama"
             ) from exc
-
-        self._client = OpenAI(api_key=api_key, timeout=timeout)
+        self._ollama = _ollama
         self.model = model
+        self.base_url = base_url
+        self.timeout = timeout
 
     def complete(
         self,
@@ -67,17 +78,24 @@ class LLMClient(BaseLLMClient):
         temperature: float = 0.7,
         max_tokens: int = 1024,
     ) -> str:
-        response = self._client.chat.completions.create(
+        import ollama as _ollama  # type: ignore
+
+        # Build the messages list
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+
+        response = _ollama.chat(
             model=self.model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=temperature,
-            max_tokens=max_tokens,
-            response_format={"type": "json_object"},
+            messages=messages,
+            options={
+                "temperature": temperature,
+                "num_predict": max_tokens,
+            },
+            format="json",
         )
-        return response.choices[0].message.content or ""
+        return response["message"]["content"] or ""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -313,13 +331,13 @@ class MockLLMClient(BaseLLMClient):
 
 def build_llm_client(
     provider: str,
-    api_key: str,
     model: str,
-    timeout: int = 30,
+    base_url: str = "http://localhost:11434",
+    timeout: int = 120,
 ) -> BaseLLMClient:
     """Return the appropriate LLM client based on provider setting."""
-    if provider == "mock" or not api_key:
-        logger.info("Using MockLLMClient (no API key configured or provider=mock).")
+    if provider == "mock":
+        logger.info("Using MockLLMClient (provider=mock).")
         return MockLLMClient()
-    logger.info("Using OpenAI LLMClient (model=%s).", model)
-    return LLMClient(api_key=api_key, model=model, timeout=timeout)
+    logger.info("Using OllamaClient (model=%s, url=%s).", model, base_url)
+    return OllamaClient(model=model, base_url=base_url, timeout=timeout)

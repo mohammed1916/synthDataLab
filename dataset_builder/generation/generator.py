@@ -45,8 +45,8 @@ class DatasetGenerator:
         self.config = config
         self.llm: BaseLLMClient = llm_client or build_llm_client(
             provider=config.llm.provider,
-            api_key=config.llm.api_key,
             model=config.llm.model,
+            base_url=config.llm.base_url,
             timeout=config.llm.request_timeout,
         )
         self._model_name = (

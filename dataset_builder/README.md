@@ -24,13 +24,13 @@
 
 The performance of any AI model is fundamentally bounded by the quality of its training data. Garbage in, garbage out is more than a cliché — it is a quantifiable phenomenon:
 
-| Data Quality Issue | Observed Impact |
-|---|---|
-| Label noise ≥ 10 % | Accuracy drops 3–8 % on NLP benchmarks |
-| Schema inconsistency | Model learns conflicting output formats |
+| Data Quality Issue                    | Observed Impact                                 |
+| ------------------------------------- | ----------------------------------------------- |
+| Label noise ≥ 10 %                    | Accuracy drops 3–8 % on NLP benchmarks          |
+| Schema inconsistency                  | Model learns conflicting output formats         |
 | Hallucinated answers in training data | Model inherits and amplifies the hallucinations |
-| Near-duplicate examples | Model overfits, diversity collapses |
-| Low-confidence generations | Model learns from uncertain, unreliable signals |
+| Near-duplicate examples               | Model overfits, diversity collapses             |
+| Low-confidence generations            | Model learns from uncertain, unreliable signals |
 
 Large-scale AI organisations (Amazon AGI, Google DeepMind, OpenAI, Anthropic) operate entire Data Quality Engineering (DQE) teams whose sole mandate is to ensure that training data is accurate, consistent, diverse, and schema-adherent before it ever touches a model.
 
@@ -70,17 +70,17 @@ This system operationalises those practices in a modular, runnable Python pipeli
 
 ### Component Responsibilities
 
-| Module | Responsibility |
-|---|---|
-| `ingestion/` | Normalises text, images, JSON articles into `{source_type, content, metadata}` |
-| `generation/` | Calls LLM with structured prompts; produces `DatasetSample` objects |
-| `prompts/` | System prompts, few-shot examples, task instructions |
-| `schema/` | JSON Schema + Pydantic-like dataclasses; `validate_sample()` |
-| `validation/` | Rule-based validator, LLM reviewer, annotation labels (HITL simulation) |
-| `filtering/` | 5-stage quality pipeline with per-stage statistics |
-| `evaluation/` | 6 quantitative metrics; before/after comparison table |
-| `analysis/` | Error categorisation, frequency statistics, auto-correction examples |
-| `main.py` | CLI with 8 commands; `run-all` runs the full pipeline |
+| Module        | Responsibility                                                                 |
+| ------------- | ------------------------------------------------------------------------------ |
+| `ingestion/`  | Normalises text, images, JSON articles into `{source_type, content, metadata}` |
+| `generation/` | Calls LLM with structured prompts; produces `DatasetSample` objects            |
+| `prompts/`    | System prompts, few-shot examples, task instructions                           |
+| `schema/`     | JSON Schema + Pydantic-like dataclasses; `validate_sample()`                   |
+| `validation/` | Rule-based validator, LLM reviewer, annotation labels (HITL simulation)        |
+| `filtering/`  | 5-stage quality pipeline with per-stage statistics                             |
+| `evaluation/` | 6 quantitative metrics; before/after comparison table                          |
+| `analysis/`   | Error categorisation, frequency statistics, auto-correction examples           |
+| `main.py`     | CLI with 8 commands; `run-all` runs the full pipeline                          |
 
 ---
 
@@ -260,14 +260,14 @@ python main.py guidelines          # print annotation guidelines
 
 ### Metrics Definitions
 
-| Metric | Definition | Ideal |
-|---|---|---|
-| **Schema Validity Rate** | % of samples passing JSON schema validation | 100 % |
-| **Task Consistency Score** | % with all required task-specific output keys present and non-empty | 100 % |
-| **Completeness Score** | Mean fraction of required fields populated | 1.0 |
-| **Hallucination Rate** | % of QA samples where answer words overlap < 20 % with input | 0 % |
-| **Diversity Score** | Type-token ratio of output vocabulary (lexical diversity) | Higher |
-| **Mean Confidence** | Mean model confidence score across all samples | Higher |
+| Metric                     | Definition                                                          | Ideal  |
+| -------------------------- | ------------------------------------------------------------------- | ------ |
+| **Schema Validity Rate**   | % of samples passing JSON schema validation                         | 100 %  |
+| **Task Consistency Score** | % with all required task-specific output keys present and non-empty | 100 %  |
+| **Completeness Score**     | Mean fraction of required fields populated                          | 1.0    |
+| **Hallucination Rate**     | % of QA samples where answer words overlap < 20 % with input        | 0 %    |
+| **Diversity Score**        | Type-token ratio of output vocabulary (lexical diversity)           | Higher |
+| **Mean Confidence**        | Mean model confidence score across all samples                      | Higher |
 
 ### Typical Before / After Results (mock LLM, 10 articles × 3 task types = 30 samples)
 
@@ -308,14 +308,14 @@ Final filtered dataset:         22 samples   (73.3% retention)
 
 Running the pipeline on the bundled sample data typically surfaces the following error distribution:
 
-| Error Code | Frequency | Root Cause |
-|---|---|---|
-| `MISSING_FIELD` | ~25 % of errors | LLM omits `evidence` field in QA or `key_facts` in Extraction |
-| `LOW_CONFIDENCE` | ~20 % of errors | Model uncertain about very long or technical passages |
-| `INSUFFICIENT_REASONING_STEPS` | ~18 % of errors | Reasoning chain truncated to < 2 steps |
-| `EMPTY_FIELD` | ~16 % of errors | LLM produces empty string for answer or conclusion |
-| `EXTRACTION_ENTITY_LIST_EMPTY` | ~12 % of errors | Mock LLM defect injection for testing |
-| `SCHEMA_INVALID` | ~9 % of errors | Type mismatch — entity as string instead of object |
+| Error Code                     | Frequency       | Root Cause                                                    |
+| ------------------------------ | --------------- | ------------------------------------------------------------- |
+| `MISSING_FIELD`                | ~25 % of errors | LLM omits `evidence` field in QA or `key_facts` in Extraction |
+| `LOW_CONFIDENCE`               | ~20 % of errors | Model uncertain about very long or technical passages         |
+| `INSUFFICIENT_REASONING_STEPS` | ~18 % of errors | Reasoning chain truncated to < 2 steps                        |
+| `EMPTY_FIELD`                  | ~16 % of errors | LLM produces empty string for answer or conclusion            |
+| `EXTRACTION_ENTITY_LIST_EMPTY` | ~12 % of errors | Mock LLM defect injection for testing                         |
+| `SCHEMA_INVALID`               | ~9 % of errors  | Type mismatch — entity as string instead of object            |
 
 ### How Filtering Improved Quality
 
@@ -327,6 +327,7 @@ Running the pipeline on the bundled sample data typically surfaces the following
 ### Before vs After Example
 
 **Before (REJECTED — missing evidence field + low confidence):**
+
 ```json
 {
   "task_type": "qa",
@@ -334,11 +335,12 @@ Running the pipeline on the bundled sample data typically surfaces the following
     "question": "What does the text state about Large language models?",
     "answer": "LLMs are deep learning models trained on massive text corpora."
   },
-  "metadata": {"confidence": 0.45}
+  "metadata": { "confidence": 0.45 }
 }
 ```
 
 **After (auto-corrected → FIX_REQUIRED → ACCEPT via reviewer):**
+
 ```json
 {
   "task_type": "qa",
@@ -347,7 +349,7 @@ Running the pipeline on the bundled sample data typically surfaces the following
     "answer": "LLMs are deep learning models trained on massive text corpora.",
     "evidence": "Large language models (LLMs) are deep learning models trained on massive text corpora to understand and generate human language."
   },
-  "metadata": {"confidence": 0.87}
+  "metadata": { "confidence": 0.87 }
 }
 ```
 
@@ -357,13 +359,13 @@ Running the pipeline on the bundled sample data typically surfaces the following
 
 All outputs are written to `data/`:
 
-| File | Description |
-|---|---|
-| `data/raw_dataset.jsonl` | All generated samples before validation |
-| `data/annotated_dataset.jsonl` | Samples with ACCEPT / REJECT / FIX_REQUIRED labels |
-| `data/filtered_dataset.jsonl` | High-quality samples only (ACCEPT, post-filtering) |
-| `data/metrics_report.json` | Before/after quality metrics comparison |
-| `data/error_analysis.json` | Error frequencies, breakdown, and correction examples |
+| File                           | Description                                           |
+| ------------------------------ | ----------------------------------------------------- |
+| `data/raw_dataset.jsonl`       | All generated samples before validation               |
+| `data/annotated_dataset.jsonl` | Samples with ACCEPT / REJECT / FIX_REQUIRED labels    |
+| `data/filtered_dataset.jsonl`  | High-quality samples only (ACCEPT, post-filtering)    |
+| `data/metrics_report.json`     | Before/after quality metrics comparison               |
+| `data/error_analysis.json`     | Error frequencies, breakdown, and correction examples |
 
 ---
 

@@ -247,9 +247,9 @@ def cli():
 )
 @click.option(
     "--mock/--no-mock",
-    default=True,
+    default=False,
     show_default=True,
-    help="Force mock LLM (no API key needed). Disabled automatically if OPENAI_API_KEY is set.",
+    help="Use mock LLM instead of Ollama (no Ollama server needed).",
 )
 def run_all(input_path: Optional[str], mock: bool):
     """Run the complete pipeline: ingest → generate → validate → filter → evaluate → analyze."""
@@ -293,7 +293,7 @@ def run_all(input_path: Optional[str], mock: bool):
 
 @cli.command("ingest")
 @click.argument("input_path")
-@click.option("--mock/--no-mock", default=True, show_default=True)
+@click.option("--mock/--no-mock", default=False, show_default=True)
 def ingest_cmd(input_path: str, mock: bool):
     """Ingest a text or JSON file and save normalised chunks."""
     cfg = _load_config(mock=mock)
@@ -305,7 +305,7 @@ def ingest_cmd(input_path: str, mock: bool):
 
 @cli.command("generate")
 @click.option("--input", "input_path", default=None, help="Input file path.")
-@click.option("--mock/--no-mock", default=True, show_default=True)
+@click.option("--mock/--no-mock", default=False, show_default=True)
 def generate_cmd(input_path: Optional[str], mock: bool):
     """Generate dataset samples from input data."""
     cfg = _load_config(mock=mock)
@@ -321,7 +321,7 @@ def generate_cmd(input_path: Optional[str], mock: bool):
     default=None,
     help="Path to a JSONL raw dataset. Defaults to data/raw_dataset.jsonl.",
 )
-@click.option("--mock/--no-mock", default=True, show_default=True)
+@click.option("--mock/--no-mock", default=False, show_default=True)
 def validate_cmd(dataset_path: Optional[str], mock: bool):
     """Validate a raw dataset JSONL file."""
     cfg = _load_config(mock=mock)
@@ -336,7 +336,7 @@ def validate_cmd(dataset_path: Optional[str], mock: bool):
 
 
 @cli.command("filter")
-@click.option("--mock/--no-mock", default=True, show_default=True)
+@click.option("--mock/--no-mock", default=False, show_default=True)
 def filter_cmd(mock: bool):
     """Apply quality filtering to the annotated dataset."""
     cfg = _load_config(mock=mock)
@@ -356,7 +356,7 @@ def filter_cmd(mock: bool):
 
 
 @cli.command("evaluate")
-@click.option("--mock/--no-mock", default=True, show_default=True)
+@click.option("--mock/--no-mock", default=False, show_default=True)
 def evaluate_cmd(mock: bool):
     """Compute and compare metrics for raw vs filtered datasets."""
     cfg = _load_config(mock=mock)
@@ -375,7 +375,7 @@ def evaluate_cmd(mock: bool):
 
 
 @cli.command("analyze")
-@click.option("--mock/--no-mock", default=True, show_default=True)
+@click.option("--mock/--no-mock", default=False, show_default=True)
 def analyze_cmd(mock: bool):
     """Run error analysis on the annotated dataset."""
     cfg = _load_config(mock=mock)

@@ -29,7 +29,7 @@
   },
   "examples": [
     {
-      "sample_id": "RS_20260329115222_5e2bce64",
+      "sample_id": "RS_20260329121635_ff87fb93",
       "task_type": "reasoning",
       "error_code": "SCHEMA_INVALID",
       "error_message": "[output:reasoning] 'conclusion' is a required property (path: [])",
@@ -56,7 +56,7 @@
       "correction_applied": false
     },
     {
-      "sample_id": "RS_20260329115222_5e2bce64",
+      "sample_id": "RS_20260329121635_ff87fb93",
       "task_type": "reasoning",
       "error_code": "LOW_CONFIDENCE",
       "error_message": "confidence=0.20 is below threshold=0.6",
@@ -83,7 +83,7 @@
       "correction_applied": false
     },
     {
-      "sample_id": "RS_20260329115222_5e2bce64",
+      "sample_id": "RS_20260329121635_ff87fb93",
       "task_type": "reasoning",
       "error_code": "EMPTY_FIELD",
       "error_message": "Reasoning: conclusion is empty",
@@ -110,7 +110,7 @@
       "correction_applied": false
     },
     {
-      "sample_id": "RS_20260329115222_d8e55cce",
+      "sample_id": "RS_20260329121636_a2d5ed53",
       "task_type": "reasoning",
       "error_code": "SCHEMA_INVALID",
       "error_message": "[output:reasoning] 'conclusion' is a required property (path: [])",
@@ -137,7 +137,7 @@
       "correction_applied": false
     },
     {
-      "sample_id": "RS_20260329115222_d8e55cce",
+      "sample_id": "RS_20260329121636_a2d5ed53",
       "task_type": "reasoning",
       "error_code": "LOW_CONFIDENCE",
       "error_message": "confidence=0.20 is below threshold=0.6",
@@ -164,7 +164,7 @@
       "correction_applied": false
     },
     {
-      "sample_id": "RS_20260329115222_d8e55cce",
+      "sample_id": "RS_20260329121636_a2d5ed53",
       "task_type": "reasoning",
       "error_code": "EMPTY_FIELD",
       "error_message": "Reasoning: conclusion is empty",
@@ -191,7 +191,7 @@
       "correction_applied": false
     },
     {
-      "sample_id": "EX_20260329115222_65ae91ae",
+      "sample_id": "EX_20260329121636_51c62eb8",
       "task_type": "extraction",
       "error_code": "WRONG_FORMAT",
       "error_message": "Extraction: entity[0] missing 'text' or 'type' key",
@@ -256,7 +256,7 @@
       "correction_applied": false
     },
     {
-      "sample_id": "RS_20260329115223_6182c94a",
+      "sample_id": "RS_20260329121637_f3b06a33",
       "task_type": "reasoning",
       "error_code": "INSUFFICIENT_REASONING_STEPS",
       "error_message": "Reasoning: only 1 step(s) provided (minimum 2 required)",

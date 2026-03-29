@@ -61,11 +61,11 @@
         "removed": 5,
         "removal_rate": 0.1667,
         "sample_reasons": [
-          "[RS_20260329115222_5e2bce64] [output:reasoning] 'conclusion' is a required property (path: [])",
-          "[RS_20260329115222_d8e55cce] [output:reasoning] 'conclusion' is a required property (path: [])",
-          "[EX_20260329115222_65ae91ae] [output:extraction] 'plain string instead of object' is not of type 'object' (pa",
-          "[RS_20260329115223_d58ddf14] [output:reasoning] ' ' is too short (path: ['conclusion'])",
-          "[RS_20260329115223_6182c94a] [output:reasoning] [\"Step 1 — Identify the core claim: 'Messenger RNA (mRNA) vac"
+          "[RS_20260329121635_ff87fb93] [output:reasoning] 'conclusion' is a required property (path: [])",
+          "[RS_20260329121636_a2d5ed53] [output:reasoning] 'conclusion' is a required property (path: [])",
+          "[EX_20260329121636_51c62eb8] [output:extraction] 'plain string instead of object' is not of type 'object' (pa",
+          "[RS_20260329121636_dbee436f] [output:reasoning] ' ' is too short (path: ['conclusion'])",
+          "[RS_20260329121637_f3b06a33] [output:reasoning] [\"Step 1 — Identify the core claim: 'Messenger RNA (mRNA) vac"
         ]
       },
       {

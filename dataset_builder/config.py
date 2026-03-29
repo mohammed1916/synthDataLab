@@ -5,7 +5,6 @@ All tuneable parameters live here so every module imports from one place.
 """
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
@@ -22,14 +21,13 @@ BASE_DIR: Path = Path(__file__).parent
 class LLMConfig:
     """Settings for the language-model backend."""
 
-    provider: str = "openai"          # "openai" | "mock"
-    model: str = "gpt-4o-mini"
+    provider: str = "ollama"          # "ollama" | "mock"
+    model: str = "qwen3:4b"
     temperature: float = 0.7
     max_tokens: int = 2048
-    request_timeout: int = 30
+    request_timeout: int = 120
     max_retries: int = 3
-    # Loaded from environment; falls back to empty string (triggers mock mode)
-    api_key: str = field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
+    base_url: str = "http://localhost:11434"
 
 
 @dataclass
@@ -99,8 +97,8 @@ class Config:
 
     @property
     def use_mock_llm(self) -> bool:
-        """True when no real API key is available or provider is forced to mock."""
-        return (not self.llm.api_key) or (self.llm.provider == "mock")
+        """True when provider is forced to mock."""
+        return self.llm.provider == "mock"
 
     def ensure_dirs(self) -> None:
         """Create output directories if they don't exist."""
