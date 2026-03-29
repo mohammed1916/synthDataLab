@@ -169,7 +169,7 @@ results += ingestor.ingest_json("path/to/articles.json")
 from generation import DatasetGenerator
 from config import Config
 
-cfg = Config()   # uses mock LLM if no OPENAI_API_KEY set
+cfg = Config()   # uses Ollama by default; pass provider="mock" for offline
 generator = DatasetGenerator(cfg)
 samples = generator.generate_from_ingestion(ingestion_results)
 ```
@@ -217,16 +217,31 @@ reporter.report(raw_metrics, filtered_metrics, filter_report_dict)
 pip install -r requirements.txt
 ```
 
-Core dependencies: `jsonschema`, `rich`, `click`, `openai`, `python-dotenv`
+Core dependencies: `jsonschema`, `rich`, `click`, `ollama`, `python-dotenv`
 
-### Run the full pipeline (no API key needed)
+### Run with Ollama (default)
+
+Make sure Ollama is running and the model is pulled:
+
+```bash
+ollama pull qwen3:4b
+```
 
 ```bash
 cd dataset_builder
 python main.py run-all
 ```
 
-This runs all 6 stages using the **mock LLM** and the bundled 10-article sample dataset.
+This runs all 6 stages using **Ollama (`qwen3:4b`)** and the bundled 10-article sample dataset.
+
+### Run in mock mode (no Ollama needed)
+
+```bash
+cd dataset_builder
+python main.py run-all --mock
+```
+
+Uses the built-in deterministic mock LLM — no server required, great for testing.
 
 ### Run with your own data
 
@@ -235,11 +250,11 @@ python main.py run-all --input data/sample_inputs/sample_text.txt
 python main.py run-all --input my_articles.json   # must be [{title, content, source}]
 ```
 
-### Run with OpenAI (real LLM)
+### Run with a different Ollama model
 
 ```bash
-export OPENAI_API_KEY=sk-...
-python main.py run-all --no-mock
+ollama pull llama3.2
+python main.py run-all   # then edit config.py: model = "llama3.2"
 ```
 
 ### Individual commands
@@ -408,7 +423,7 @@ dataset_builder/
 │
 ├── generation/
 │   ├── generator.py            # Orchestrates LLM calls → DatasetSample
-│   └── llm_client.py           # OpenAI client + MockLLMClient
+│   └── llm_client.py           # OllamaClient + MockLLMClient
 │
 ├── prompts/
 │   ├── templates.py            # System prompts + few-shot injection
