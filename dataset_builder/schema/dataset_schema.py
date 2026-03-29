@@ -1,0 +1,276 @@
+"""
+dataset_schema.py — Authoritative JSON Schema + dataclass for dataset samples.
+
+The schema is used by the validation layer to check *every* generated sample
+before it enters the filtering and evaluation stages.
+
+Schema hierarchy
+----------------
+DatasetSample
+├── id           : str  — unique identifier (UUID-like)
+├── input        : str  — source passage given to the LLM
+├── task_type    : enum — "qa" | "extraction" | "reasoning"
+├── instruction  : str  — human-readable task description
+├── output       : dict — task-specific (see sub-schemas below)
+└── metadata
+    ├── source            : str
+    ├── confidence        : float  [0, 1]
+    ├── generation_model  : str
+    └── timestamp         : str  (ISO-8601)
+"""
+from __future__ import annotations
+
+import json
+import uuid
+from dataclasses import dataclass, field, asdict
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
+
+import jsonschema
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JSON Schema
+# ─────────────────────────────────────────────────────────────────────────────
+
+DATASET_SCHEMA: Dict[str, Any] = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "DatasetSample",
+    "type": "object",
+    "required": ["id", "input", "task_type", "instruction", "output", "metadata"],
+    "additionalProperties": False,
+    "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "input": {"type": "string", "minLength": 10},
+        "task_type": {"type": "string", "enum": ["qa", "extraction", "reasoning"]},
+        "instruction": {"type": "string", "minLength": 5},
+        "output": {
+            "type": "object",
+            "minProperties": 1,
+        },
+        "metadata": {
+            "type": "object",
+            "required": ["source", "confidence", "generation_model", "timestamp"],
+            "additionalProperties": True,
+            "properties": {
+                "source": {"type": "string", "minLength": 1},
+                "confidence": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                },
+                "generation_model": {"type": "string", "minLength": 1},
+                "timestamp": {"type": "string", "minLength": 1},
+            },
+        },
+    },
+}
+
+# Task-type-specific output sub-schemas
+_QA_OUTPUT_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "required": ["question", "answer", "evidence"],
+    "properties": {
+        "question": {"type": "string", "minLength": 5},
+        "answer": {"type": "string", "minLength": 3},
+        "evidence": {"type": "string", "minLength": 3},
+    },
+}
+
+_EXTRACTION_OUTPUT_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "required": ["entities", "relations", "key_facts"],
+    "properties": {
+        "entities": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "required": ["text", "type"],
+                "properties": {
+                    "text": {"type": "string"},
+                    "type": {"type": "string"},
+                },
+            },
+        },
+        "relations": {"type": "array"},
+        "key_facts": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string"},
+        },
+    },
+}
+
+_REASONING_OUTPUT_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "required": ["reasoning_steps", "conclusion", "confidence_explanation"],
+    "properties": {
+        "reasoning_steps": {
+            "type": "array",
+            "minItems": 2,
+            "items": {"type": "string"},
+        },
+        "conclusion": {"type": "string", "minLength": 10},
+        "confidence_explanation": {"type": "string", "minLength": 5},
+    },
+}
+
+TASK_OUTPUT_SCHEMAS: Dict[str, Dict] = {
+    "qa": _QA_OUTPUT_SCHEMA,
+    "extraction": _EXTRACTION_OUTPUT_SCHEMA,
+    "reasoning": _REASONING_OUTPUT_SCHEMA,
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dataclass
+# ─────────────────────────────────────────────────────────────────────────────
+
+@dataclass
+class SampleMetadata:
+    source: str
+    confidence: float
+    generation_model: str
+    timestamp: str
+    chunk_index: int = 0
+
+    @classmethod
+    def now(
+        cls,
+        source: str,
+        confidence: float,
+        model: str,
+        chunk_index: int = 0,
+    ) -> "SampleMetadata":
+        return cls(
+            source=source,
+            confidence=confidence,
+            generation_model=model,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            chunk_index=chunk_index,
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class DatasetSample:
+    """
+    In-memory representation of a single generated dataset sample.
+
+    Generated by :class:`generation.generator.DatasetGenerator` and consumed
+    downstream by validation, filtering, and evaluation modules.
+    """
+
+    id: str
+    input: str
+    task_type: str
+    instruction: str
+    output: Dict[str, Any]
+    metadata: Dict[str, Any]
+
+    # ── Constructors ──────────────────────────────────────────────────────────
+
+    @classmethod
+    def create(
+        cls,
+        task_type: str,
+        input_text: str,
+        instruction: str,
+        output: Dict[str, Any],
+        source: str,
+        confidence: float,
+        model: str,
+        chunk_index: int = 0,
+    ) -> "DatasetSample":
+        """Factory — generates a unique ID and current timestamp automatically."""
+        meta = SampleMetadata.now(
+            source=source,
+            confidence=confidence,
+            model=model,
+            chunk_index=chunk_index,
+        )
+        return cls(
+            id=_generate_id(task_type),
+            input=input_text,
+            task_type=task_type,
+            instruction=instruction,
+            output=output,
+            metadata=meta.to_dict(),
+        )
+
+    # ── Serialisation ─────────────────────────────────────────────────────────
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "input": self.input,
+            "task_type": self.task_type,
+            "instruction": self.instruction,
+            "output": self.output,
+            "metadata": self.metadata,
+        }
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "DatasetSample":
+        return cls(
+            id=d["id"],
+            input=d["input"],
+            task_type=d["task_type"],
+            instruction=d["instruction"],
+            output=d["output"],
+            metadata=d["metadata"],
+        )
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict(), ensure_ascii=False)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Validation helper
+# ─────────────────────────────────────────────────────────────────────────────
+
+def validate_sample(sample: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    """
+    Validate a sample dict against the top-level and task-specific schemas.
+
+    Returns:
+        (is_valid, list_of_error_messages)
+    """
+    errors: List[str] = []
+
+    # Top-level schema
+    validator = jsonschema.Draft7Validator(DATASET_SCHEMA)
+    for error in validator.iter_errors(sample):
+        errors.append(f"[schema] {error.message} (path: {list(error.path)})")
+
+    if errors:
+        return False, errors
+
+    # Task-specific output schema
+    task_type = sample.get("task_type", "")
+    output_schema = TASK_OUTPUT_SCHEMAS.get(task_type)
+    if output_schema:
+        output_validator = jsonschema.Draft7Validator(output_schema)
+        for error in output_validator.iter_errors(sample.get("output", {})):
+            errors.append(
+                f"[output:{task_type}] {error.message} "
+                f"(path: {list(error.path)})"
+            )
+
+    return len(errors) == 0, errors
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Utilities
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _generate_id(task_type: str) -> str:
+    """Generate a short, deterministic-looking unique sample ID."""
+    short_uuid = str(uuid.uuid4()).split("-")[0]
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    prefix = {"qa": "QA", "extraction": "EX", "reasoning": "RS"}.get(
+        task_type.lower(), "XX"
+    )
+    return f"{prefix}_{ts}_{short_uuid}"

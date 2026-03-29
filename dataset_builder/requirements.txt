@@ -1,0 +1,16 @@
+# Core dependencies
+openai>=1.0.0
+jsonschema>=4.17.0
+python-dotenv>=1.0.0
+rich>=13.0.0
+click>=8.0.0
+
+# Image processing (optional — for image ingestion)
+Pillow>=9.0.0
+pytesseract>=0.3.10
+
+# Data utilities
+numpy>=1.24.0
+
+# Optional: FAISS vector similarity retrieval (bonus)
+# faiss-cpu>=1.7.4

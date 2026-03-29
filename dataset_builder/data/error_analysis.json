@@ -1,0 +1,282 @@
+{
+  "total_rejected": 5,
+  "total_fix_required": 0,
+  "error_counts": {
+    "SCHEMA_INVALID": 5,
+    "LOW_CONFIDENCE": 3,
+    "EMPTY_FIELD": 3,
+    "WRONG_FORMAT": 1,
+    "INSUFFICIENT_REASONING_STEPS": 1
+  },
+  "error_rates": {
+    "SCHEMA_INVALID": 1.0,
+    "LOW_CONFIDENCE": 0.6,
+    "EMPTY_FIELD": 0.6,
+    "WRONG_FORMAT": 0.2,
+    "INSUFFICIENT_REASONING_STEPS": 0.2
+  },
+  "per_task_breakdown": {
+    "reasoning": {
+      "SCHEMA_INVALID": 4,
+      "LOW_CONFIDENCE": 3,
+      "EMPTY_FIELD": 3,
+      "INSUFFICIENT_REASONING_STEPS": 1
+    },
+    "extraction": {
+      "SCHEMA_INVALID": 1,
+      "WRONG_FORMAT": 1
+    }
+  },
+  "examples": [
+    {
+      "sample_id": "RS_20260329115222_5e2bce64",
+      "task_type": "reasoning",
+      "error_code": "SCHEMA_INVALID",
+      "error_message": "[output:reasoning] 'conclusion' is a required property (path: [])",
+      "before": {
+        "reasoning_steps": [
+          "Step 1 — Identify the core claim: 'The global carbon budget quantifies the balance between carbon dioxide emissions from human activities and carbon dioxid'",
+          "Step 2 — Examine the supporting evidence: 'According to the Global Carbon Project, cumulative CO2 emissions since pre-industrial times have amounted to approximate'",
+          "Step 3 — Apply logical reasoning: The passage consistently supports the argument that The global carbon budget quantifies the balance between...",
+          "Step 4 — Consider counter-arguments or qualifications mentioned in the text.",
+          "Step 5 — Synthesise: The passage provides 'Transitioning to renewable energy sources—solar, wind, and hydropower—alongside carbon capture and s' as a concluding point."
+        ],
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "after": {
+        "reasoning_steps": [
+          "Step 1 — Identify the core claim: 'The global carbon budget quantifies the balance between carbon dioxide emissions from human activities and carbon dioxid'",
+          "Step 2 — Examine the supporting evidence: 'According to the Global Carbon Project, cumulative CO2 emissions since pre-industrial times have amounted to approximate'",
+          "Step 3 — Apply logical reasoning: The passage consistently supports the argument that The global carbon budget quantifies the balance between...",
+          "Step 4 — Consider counter-arguments or qualifications mentioned in the text.",
+          "Step 5 — Synthesise: The passage provides 'Transitioning to renewable energy sources—solar, wind, and hydropower—alongside carbon capture and s' as a concluding point."
+        ],
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "correction_applied": false
+    },
+    {
+      "sample_id": "RS_20260329115222_5e2bce64",
+      "task_type": "reasoning",
+      "error_code": "LOW_CONFIDENCE",
+      "error_message": "confidence=0.20 is below threshold=0.6",
+      "before": {
+        "reasoning_steps": [
+          "Step 1 — Identify the core claim: 'The global carbon budget quantifies the balance between carbon dioxide emissions from human activities and carbon dioxid'",
+          "Step 2 — Examine the supporting evidence: 'According to the Global Carbon Project, cumulative CO2 emissions since pre-industrial times have amounted to approximate'",
+          "Step 3 — Apply logical reasoning: The passage consistently supports the argument that The global carbon budget quantifies the balance between...",
+          "Step 4 — Consider counter-arguments or qualifications mentioned in the text.",
+          "Step 5 — Synthesise: The passage provides 'Transitioning to renewable energy sources—solar, wind, and hydropower—alongside carbon capture and s' as a concluding point."
+        ],
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "after": {
+        "reasoning_steps": [
+          "Step 1 — Identify the core claim: 'The global carbon budget quantifies the balance between carbon dioxide emissions from human activities and carbon dioxid'",
+          "Step 2 — Examine the supporting evidence: 'According to the Global Carbon Project, cumulative CO2 emissions since pre-industrial times have amounted to approximate'",
+          "Step 3 — Apply logical reasoning: The passage consistently supports the argument that The global carbon budget quantifies the balance between...",
+          "Step 4 — Consider counter-arguments or qualifications mentioned in the text.",
+          "Step 5 — Synthesise: The passage provides 'Transitioning to renewable energy sources—solar, wind, and hydropower—alongside carbon capture and s' as a concluding point."
+        ],
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "correction_applied": false
+    },
+    {
+      "sample_id": "RS_20260329115222_5e2bce64",
+      "task_type": "reasoning",
+      "error_code": "EMPTY_FIELD",
+      "error_message": "Reasoning: conclusion is empty",
+      "before": {
+        "reasoning_steps": [
+          "Step 1 — Identify the core claim: 'The global carbon budget quantifies the balance between carbon dioxide emissions from human activities and carbon dioxid'",
+          "Step 2 — Examine the supporting evidence: 'According to the Global Carbon Project, cumulative CO2 emissions since pre-industrial times have amounted to approximate'",
+          "Step 3 — Apply logical reasoning: The passage consistently supports the argument that The global carbon budget quantifies the balance between...",
+          "Step 4 — Consider counter-arguments or qualifications mentioned in the text.",
+          "Step 5 — Synthesise: The passage provides 'Transitioning to renewable energy sources—solar, wind, and hydropower—alongside carbon capture and s' as a concluding point."
+        ],
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "after": {
+        "reasoning_steps": [
+          "Step 1 — Identify the core claim: 'The global carbon budget quantifies the balance between carbon dioxide emissions from human activities and carbon dioxid'",
+          "Step 2 — Examine the supporting evidence: 'According to the Global Carbon Project, cumulative CO2 emissions since pre-industrial times have amounted to approximate'",
+          "Step 3 — Apply logical reasoning: The passage consistently supports the argument that The global carbon budget quantifies the balance between...",
+          "Step 4 — Consider counter-arguments or qualifications mentioned in the text.",
+          "Step 5 — Synthesise: The passage provides 'Transitioning to renewable energy sources—solar, wind, and hydropower—alongside carbon capture and s' as a concluding point."
+        ],
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "correction_applied": false
+    },
+    {
+      "sample_id": "RS_20260329115222_d8e55cce",
+      "task_type": "reasoning",
+      "error_code": "SCHEMA_INVALID",
+      "error_message": "[output:reasoning] 'conclusion' is a required property (path: [])",
+      "before": {
+        "reasoning_steps": [
+          "Step 1 — Identify the core claim: 'Quantum computers exploit principles of quantum mechanics—superposition, entanglement, and interference—to perform compu'",
+          "Step 2 — Examine the supporting evidence: 'A qubit, the fundamental unit of quantum information, can exist in a superposition of states |0⟩ and |1⟩ simultaneously,'",
+          "Step 3 — Apply logical reasoning: The passage consistently supports the argument that Quantum computers exploit principles of quantum mechanics—superposition, entanglement,...",
+          "Step 4 — Consider counter-arguments or qualifications mentioned in the text.",
+          "Step 5 — Synthesise: The passage provides 'Google's Sycamore processor achieved quantum supremacy in 2019 by completing a specific sampling tas' as a concluding point."
+        ],
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "after": {
+        "reasoning_steps": [
+          "Step 1 — Identify the core claim: 'Quantum computers exploit principles of quantum mechanics—superposition, entanglement, and interference—to perform compu'",
+          "Step 2 — Examine the supporting evidence: 'A qubit, the fundamental unit of quantum information, can exist in a superposition of states |0⟩ and |1⟩ simultaneously,'",
+          "Step 3 — Apply logical reasoning: The passage consistently supports the argument that Quantum computers exploit principles of quantum mechanics—superposition, entanglement,...",
+          "Step 4 — Consider counter-arguments or qualifications mentioned in the text.",
+          "Step 5 — Synthesise: The passage provides 'Google's Sycamore processor achieved quantum supremacy in 2019 by completing a specific sampling tas' as a concluding point."
+        ],
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "correction_applied": false
+    },
+    {
+      "sample_id": "RS_20260329115222_d8e55cce",
+      "task_type": "reasoning",
+      "error_code": "LOW_CONFIDENCE",
+      "error_message": "confidence=0.20 is below threshold=0.6",
+      "before": {
+        "reasoning_steps": [
+          "Step 1 — Identify the core claim: 'Quantum computers exploit principles of quantum mechanics—superposition, entanglement, and interference—to perform compu'",
+          "Step 2 — Examine the supporting evidence: 'A qubit, the fundamental unit of quantum information, can exist in a superposition of states |0⟩ and |1⟩ simultaneously,'",
+          "Step 3 — Apply logical reasoning: The passage consistently supports the argument that Quantum computers exploit principles of quantum mechanics—superposition, entanglement,...",
+          "Step 4 — Consider counter-arguments or qualifications mentioned in the text.",
+          "Step 5 — Synthesise: The passage provides 'Google's Sycamore processor achieved quantum supremacy in 2019 by completing a specific sampling tas' as a concluding point."
+        ],
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "after": {
+        "reasoning_steps": [
+          "Step 1 — Identify the core claim: 'Quantum computers exploit principles of quantum mechanics—superposition, entanglement, and interference—to perform compu'",
+          "Step 2 — Examine the supporting evidence: 'A qubit, the fundamental unit of quantum information, can exist in a superposition of states |0⟩ and |1⟩ simultaneously,'",
+          "Step 3 — Apply logical reasoning: The passage consistently supports the argument that Quantum computers exploit principles of quantum mechanics—superposition, entanglement,...",
+          "Step 4 — Consider counter-arguments or qualifications mentioned in the text.",
+          "Step 5 — Synthesise: The passage provides 'Google's Sycamore processor achieved quantum supremacy in 2019 by completing a specific sampling tas' as a concluding point."
+        ],
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "correction_applied": false
+    },
+    {
+      "sample_id": "RS_20260329115222_d8e55cce",
+      "task_type": "reasoning",
+      "error_code": "EMPTY_FIELD",
+      "error_message": "Reasoning: conclusion is empty",
+      "before": {
+        "reasoning_steps": [
+          "Step 1 — Identify the core claim: 'Quantum computers exploit principles of quantum mechanics—superposition, entanglement, and interference—to perform compu'",
+          "Step 2 — Examine the supporting evidence: 'A qubit, the fundamental unit of quantum information, can exist in a superposition of states |0⟩ and |1⟩ simultaneously,'",
+          "Step 3 — Apply logical reasoning: The passage consistently supports the argument that Quantum computers exploit principles of quantum mechanics—superposition, entanglement,...",
+          "Step 4 — Consider counter-arguments or qualifications mentioned in the text.",
+          "Step 5 — Synthesise: The passage provides 'Google's Sycamore processor achieved quantum supremacy in 2019 by completing a specific sampling tas' as a concluding point."
+        ],
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "after": {
+        "reasoning_steps": [
+          "Step 1 — Identify the core claim: 'Quantum computers exploit principles of quantum mechanics—superposition, entanglement, and interference—to perform compu'",
+          "Step 2 — Examine the supporting evidence: 'A qubit, the fundamental unit of quantum information, can exist in a superposition of states |0⟩ and |1⟩ simultaneously,'",
+          "Step 3 — Apply logical reasoning: The passage consistently supports the argument that Quantum computers exploit principles of quantum mechanics—superposition, entanglement,...",
+          "Step 4 — Consider counter-arguments or qualifications mentioned in the text.",
+          "Step 5 — Synthesise: The passage provides 'Google's Sycamore processor achieved quantum supremacy in 2019 by completing a specific sampling tas' as a concluding point."
+        ],
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "correction_applied": false
+    },
+    {
+      "sample_id": "EX_20260329115222_65ae91ae",
+      "task_type": "extraction",
+      "error_code": "WRONG_FORMAT",
+      "error_message": "Extraction: entity[0] missing 'text' or 'type' key",
+      "before": {
+        "entities": [
+          "plain string instead of object"
+        ],
+        "relations": [
+          {
+            "subject": "Platform",
+            "predicate": "influences",
+            "object": "Direct"
+          },
+          {
+            "subject": "Direct",
+            "predicate": "developed_by",
+            "object": "Crossside"
+          },
+          {
+            "subject": "Crossside",
+            "predicate": "developed_by",
+            "object": "Amazon"
+          }
+        ],
+        "key_facts": [
+          "Platform markets, also known as multi-sided markets, connect two or more distinct user groups whose interactions generate value through network effects.",
+          "A network effect occurs when the value of a product or service increases as more people use it.",
+          "Direct network effects arise within a single user group—as on a telephone network where each additional subscriber increases the network's value for all existing users.",
+          "Cross-side network effects, characteristic of platforms like Amazon Marketplace, Airbnb, and payment systems, occur when an increase in users on one side increases value for users on the other side.",
+          "Winner-take-all dynamics are common in platform markets because strong network effects create a self-reinforcing cycle that entrenches market leaders."
+        ]
+      },
+      "after": {
+        "entities": [
+          "plain string instead of object"
+        ],
+        "relations": [
+          {
+            "subject": "Platform",
+            "predicate": "influences",
+            "object": "Direct"
+          },
+          {
+            "subject": "Direct",
+            "predicate": "developed_by",
+            "object": "Crossside"
+          },
+          {
+            "subject": "Crossside",
+            "predicate": "developed_by",
+            "object": "Amazon"
+          }
+        ],
+        "key_facts": [
+          "Platform markets, also known as multi-sided markets, connect two or more distinct user groups whose interactions generate value through network effects.",
+          "A network effect occurs when the value of a product or service increases as more people use it.",
+          "Direct network effects arise within a single user group—as on a telephone network where each additional subscriber increases the network's value for all existing users.",
+          "Cross-side network effects, characteristic of platforms like Amazon Marketplace, Airbnb, and payment systems, occur when an increase in users on one side increases value for users on the other side.",
+          "Winner-take-all dynamics are common in platform markets because strong network effects create a self-reinforcing cycle that entrenches market leaders."
+        ]
+      },
+      "correction_applied": false
+    },
+    {
+      "sample_id": "RS_20260329115223_6182c94a",
+      "task_type": "reasoning",
+      "error_code": "INSUFFICIENT_REASONING_STEPS",
+      "error_message": "Reasoning: only 1 step(s) provided (minimum 2 required)",
+      "before": {
+        "reasoning_steps": [
+          "Step 1 — Identify the core claim: 'Messenger RNA (mRNA) vaccines represent a paradigm shift in vaccinology.'"
+        ],
+        "conclusion": "Based on the evidence presented, the passage establishes that Messenger RNA (mRNA) vaccines represent a paradigm shift... This is supported by the explicit statements within the text.",
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "after": {
+        "reasoning_steps": [
+          "Step 1 — Identify the core claim: 'Messenger RNA (mRNA) vaccines represent a paradigm shift in vaccinology.'",
+          "Step (auto) — Further analysis is required to strengthen this reasoning chain."
+        ],
+        "conclusion": "Based on the evidence presented, the passage establishes that Messenger RNA (mRNA) vaccines represent a paradigm shift... This is supported by the explicit statements within the text.",
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "correction_applied": true
+    }
+  ],
+  "auto_corrections_applied": 1
+}

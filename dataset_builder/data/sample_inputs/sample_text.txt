@@ -1,0 +1,7 @@
+Large language models (LLMs) are deep learning models trained on massive corpora to understand and generate human language. GPT-4, Claude, and Gemini have demonstrated remarkable capabilities in reasoning, code generation, and knowledge synthesis. The transformer architecture, which uses self-attention mechanisms to capture long-range dependencies, forms the backbone of all modern LLMs.
+
+CRISPR-Cas9 is a gene-editing technology that allows precise modification of DNA sequences using a guide RNA to target specific genomic locations. The Cas9 enzyme acts as molecular scissors. Scientists Jennifer Doudna and Emmanuelle Charpentier won the 2020 Nobel Prize in Chemistry for developing this technology.
+
+Climate change refers to long-term shifts in temperatures and weather patterns primarily driven by human activities since the 1800s. The burning of fossil fuels releases carbon dioxide and other greenhouse gases which trap heat in the atmosphere. According to the IPCC, limiting warming to 1.5 degrees Celsius requires halving global emissions by 2030.
+
+Quantum computers leverage superposition and entanglement to perform computations that are intractable for classical machines. A qubit can exist in a superposition of 0 and 1 simultaneously. Google's Sycamore processor demonstrated quantum advantage in 2019, completing a benchmark task 10,000 times faster than classical supercomputers.
