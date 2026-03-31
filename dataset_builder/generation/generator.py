@@ -18,7 +18,7 @@ import json
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Optional, Tuple
+from typing import Generator, Iterable, List, Optional, Tuple
 
 from config import Config, DEFAULT_CONFIG
 from ingestion.ingestor import IngestionResult
@@ -154,6 +154,30 @@ class DatasetGenerator:
     # ─────────────────────────────────────────────────────────────────────────
     # Internal
     # ─────────────────────────────────────────────────────────────────────────
+
+    def generate_stream(
+        self, ingestion_results: List[IngestionResult]
+    ) -> Generator[Tuple[DatasetSample, IngestionResult, str], None, None]:
+        """
+        Lazily yield ``(sample, chunk, task_type)`` tuples one at a time
+        (sequential, single-threaded).
+
+        Used by the ``MultiAgentOrchestrator`` so it can run critic scoring
+        and steering on each sample *before* the next one is produced.
+
+        Args:
+            ingestion_results: Normalised input records.
+
+        Yields:
+            Tuples of ``(DatasetSample, source_chunk, task_type)``.
+            When generation fails, the sample is still returned (with
+            ``confidence=0.0`` and a ``_parse_error`` key in its output).
+        """
+        for chunk in ingestion_results:
+            for task_type in self.config.generation.task_types:
+                sample = self._generate_one(chunk, task_type)
+                if sample is not None:
+                    yield sample, chunk, task_type
 
     def _generate_one(
         self, chunk: IngestionResult, task_type: str

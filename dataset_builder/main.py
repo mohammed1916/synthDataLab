@@ -3,20 +3,23 @@ main.py — CLI entry point for the Dataset Builder pipeline.
 
 Commands
 --------
-  run-all     Run the complete pipeline end-to-end (recommended for demo)
-  ingest      Normalise raw inputs into intermediate representation
-  generate    Synthesise dataset samples from ingested content
-  validate    Apply schema + rule validation to a raw dataset file
-  filter      Run quality filtering on a validated (annotated) dataset
-  evaluate    Compute and compare metrics for raw vs filtered datasets
-  analyze     Run error analysis on an annotated dataset
-  evolve      Run Evol-Instruct prompt evolution on a seed file
-  guidelines  Print human-in-the-loop annotation guidelines
+  run-all          Run the complete pipeline end-to-end (recommended for demo)
+  ingest           Normalise raw inputs into intermediate representation
+  generate         Synthesise dataset samples from ingested content
+  generate-agent   Multi-agent generation with critic scoring + human steering
+  validate         Apply schema + rule validation to a raw dataset file
+  filter           Run quality filtering on a validated (annotated) dataset
+  evaluate         Compute and compare metrics for raw vs filtered datasets
+  analyze          Run error analysis on an annotated dataset
+  evolve           Run Evol-Instruct prompt evolution on a seed file
+  guidelines       Print human-in-the-loop annotation guidelines
 
 Usage examples
 --------------
   python main.py run-all
   python main.py run-all --input data/sample_inputs/sample_articles.json
+  python main.py generate-agent --mock --steering review-low
+  python main.py generate-agent --mock --steering auto --threshold 0.65
   python main.py evolve data/sample_inputs/sample_text.txt --rounds 2
   python main.py generate --help
 """
@@ -640,6 +643,139 @@ def evolve_cmd(
     out_path = Path(output_path) if output_path else cfg.storage.data_dir / "evolved_prompts.jsonl"
     _save_jsonl([ep.to_dict() for ep in evolved], out_path)
     _echo(f"\n  Evolved prompts saved → [cyan]{out_path}[/cyan]")
+
+
+@cli.command("generate-agent")
+@click.option(
+    "--input", "input_path",
+    default=None,
+    help="Path to a text file or JSON articles file. Defaults to bundled sample data.",
+)
+@click.option(
+    "--mock/--no-mock",
+    default=False,
+    show_default=True,
+    help="Use mock LLM instead of Ollama (no Ollama server needed).",
+)
+@click.option(
+    "--steering",
+    type=click.Choice(["auto", "review-low", "review-all"], case_sensitive=False),
+    default="auto",
+    show_default=True,
+    help=(
+        "Human steering mode.  "
+        "auto=critic decides everything; "
+        "review-low=human reviews low-scoring samples; "
+        "review-all=human reviews every sample."
+    ),
+)
+@click.option(
+    "--threshold",
+    default=0.70,
+    show_default=True,
+    type=click.FloatRange(0.0, 1.0),
+    help="Critic pass threshold (composite score ≥ this → ACCEPT in auto mode).",
+)
+@click.option(
+    "--workers",
+    default=1,
+    show_default=True,
+    type=click.IntRange(min=1, max=16),
+    help="Number of parallel LLM generation threads.",
+)
+@click.option(
+    "--output", "output_path",
+    default=None,
+    help="Path to write the accepted samples JSONL. Default: data/raw_dataset.jsonl",
+)
+@click.option(
+    "--no-dashboard",
+    is_flag=True,
+    default=False,
+    help="Disable the live Rich dashboard (useful for CI / log-only runs).",
+)
+def generate_agent_cmd(
+    input_path: Optional[str],
+    mock: bool,
+    steering: str,
+    threshold: float,
+    workers: int,
+    output_path: Optional[str],
+    no_dashboard: bool,
+):
+    """
+    Run multi-agent generation with critic scoring + optional human steering.
+
+    The pipeline:
+
+    \b
+      Generator Agent  →  CriticAgent (4-axis scoring)
+                       →  Steering Gate (auto / review-low / review-all)
+                       →  LiveMetricsTracker (Rich dashboard)
+                       →  Save accepted samples to JSONL
+
+    Examples::
+
+        # Fully automatic (critic decides, rich dashboard visible)
+        python main.py generate-agent --mock
+
+        # Human reviews samples below the 0.70 threshold
+        python main.py generate-agent --mock --steering review-low
+
+        # Human reviews every sample
+        python main.py generate-agent --mock --steering review-all --threshold 0.6
+
+        # Use real Ollama backend with 4 workers
+        python main.py generate-agent --workers 4 --steering auto
+    """
+    from generation.orchestrator import MultiAgentOrchestrator, OrchestratorConfig, SteeringMode
+
+    cfg = _load_config(mock=mock)
+    cfg.generation.max_workers = workers
+
+    _echo(
+        f"\n[bold green]Multi-Agent Generation[/bold green]"
+        f" ({'Mock LLM' if cfg.use_mock_llm else cfg.llm.model})"
+        f" | steering={steering}  threshold={threshold}  workers={workers}\n"
+    )
+
+    # Ingest
+    _header("INGESTION")
+    ingestion_results = step_ingest(cfg, input_path)
+
+    # Build orchestrator config
+    orch_cfg = OrchestratorConfig(
+        steering_mode=SteeringMode(steering),
+        critic_pass_threshold=threshold,
+        critic_review_threshold=max(0.0, threshold - 0.25),
+        show_dashboard=not no_dashboard,
+    )
+
+    # Run orchestration
+    _header("MULTI-AGENT GENERATION + CRITIC")
+    orch = MultiAgentOrchestrator(config=cfg, orch_config=orch_cfg)
+    result = orch.run(ingestion_results)
+
+    if result.aborted:
+        _echo("[yellow]Run was aborted by user — saving collected samples.[/yellow]")
+
+    # Save accepted samples
+    out = Path(output_path) if output_path else cfg.storage.raw_path()
+    all_output = result.accepted + result.fix_required
+    _save_jsonl(all_output, out)
+
+    _echo(f"\n  Accepted + Fix-required → [cyan]{out}[/cyan]")
+    _echo(f"  Rejected               → discarded ({len(result.rejected)} samples)")
+
+    if result.metrics_snapshot:
+        _header("METRICS SNAPSHOT (accepted samples)")
+        import json as _json
+        snap = result.metrics_snapshot
+        _echo(f"  Schema validity       {snap.get('schema_validity_rate', 0):.1%}")
+        _echo(f"  Task consistency      {snap.get('task_consistency_score', 0):.1%}")
+        _echo(f"  Diversity score       {snap.get('diversity_score', 0):.3f}")
+        _echo(f"  Collapse risk         {snap.get('collapse_risk_score', 0):.3f}  "
+              f"({snap.get('collapse_warning') or 'OK'})")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
