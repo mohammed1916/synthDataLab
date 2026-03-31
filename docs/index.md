@@ -8,15 +8,15 @@ the system in production.
 
 ## Contents
 
-| Page | Description |
-|------|-------------|
-| [Quickstart](quickstart.md) | Install, run your first pipeline, see outputs in 5 minutes |
-| [CLI Reference](cli-reference.md) | Every command, flag, and example |
-| [Configuration](configuration.md) | Full config.py reference with defaults and tuning advice |
-| [Architecture](architecture.md) | System design, data-flow diagrams, module map |
-| [Multi-Agent System](multi-agent.md) | Generator → Critic → Steering pipeline deep-dive |
-| [Metrics Guide](metrics-guide.md) | What every metric means and how to act on it |
-| [Production Deployment](production-deployment.md) | Docker, CI/CD, environment variables, monitoring |
+| Page                                              | Description                                                |
+| ------------------------------------------------- | ---------------------------------------------------------- |
+| [Quickstart](quickstart.md)                       | Install, run your first pipeline, see outputs in 5 minutes |
+| [CLI Reference](cli-reference.md)                 | Every command, flag, and example                           |
+| [Configuration](configuration.md)                 | Full config.py reference with defaults and tuning advice   |
+| [Architecture](architecture.md)                   | System design, data-flow diagrams, module map              |
+| [Multi-Agent System](multi-agent.md)              | Generator → Critic → Steering pipeline deep-dive           |
+| [Metrics Guide](metrics-guide.md)                 | What every metric means and how to act on it               |
+| [Production Deployment](production-deployment.md) | Docker, CI/CD, environment variables, monitoring           |
 
 ---
 
@@ -35,19 +35,19 @@ SynthDataLab is an **industrial-grade synthetic dataset pipeline** that:
 
 ### Supported task types
 
-| Task type | Description | Key output fields |
-|-----------|-------------|-------------------|
-| `qa` | Question/answer with evidence | `question`, `answer`, `evidence` |
-| `extraction` | Named-entity and relation extraction | `entities`, `relations`, `key_facts` |
-| `reasoning` | Multi-step chain-of-thought | `reasoning_steps`, `conclusion` |
-| `reasoning_trace` | Visible `<think>` scratchpad + answer | `think`, `answer`, `verification` |
-| `preference` | RLHF preference pairs | `chosen`, `rejected`, `preference_margin` |
+| Task type         | Description                           | Key output fields                         |
+| ----------------- | ------------------------------------- | ----------------------------------------- |
+| `qa`              | Question/answer with evidence         | `question`, `answer`, `evidence`          |
+| `extraction`      | Named-entity and relation extraction  | `entities`, `relations`, `key_facts`      |
+| `reasoning`       | Multi-step chain-of-thought           | `reasoning_steps`, `conclusion`           |
+| `reasoning_trace` | Visible `<think>` scratchpad + answer | `think`, `answer`, `verification`         |
+| `preference`      | RLHF preference pairs                 | `chosen`, `rejected`, `preference_margin` |
 
 ### Key research motivation
 
-SynthDataLab directly addresses **Model Collapse** (Shumailov et al., *Nature* 2024) — the
+SynthDataLab directly addresses **Model Collapse** (Shumailov et al., _Nature_ 2024) — the
 phenomenon where models trained on synthetic data progressively lose diversity over
-generations.  The pipeline's collapse-risk metrics, vocabulary-entropy gauges, and
+generations. The pipeline's collapse-risk metrics, vocabulary-entropy gauges, and
 Evol-Instruct prompt evolution are all designed to keep generated data diverse.
 
 ---

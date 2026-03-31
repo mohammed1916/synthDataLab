@@ -27,12 +27,12 @@ python main.py run-all [OPTIONS]
 
 ### Options
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--input PATH` | bundled sample | Path to a `.txt` or `.json` articles file |
-| `--mock / --no-mock` | `--no-mock` | Use mock LLM (no Ollama server required) |
-| `--resume / --no-resume` | `--no-resume` | Resume from last checkpoint |
-| `--workers N` | `1` | Parallel LLM generation threads (1–16) |
+| Flag                     | Default        | Description                               |
+| ------------------------ | -------------- | ----------------------------------------- |
+| `--input PATH`           | bundled sample | Path to a `.txt` or `.json` articles file |
+| `--mock / --no-mock`     | `--no-mock`    | Use mock LLM (no Ollama server required)  |
+| `--resume / --no-resume` | `--no-resume`  | Resume from last checkpoint               |
+| `--workers N`            | `1`            | Parallel LLM generation threads (1–16)    |
 
 ### Steps executed
 
@@ -69,22 +69,22 @@ python main.py generate-agent [OPTIONS]
 
 ### Options
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--input PATH` | bundled sample | Source data file |
-| `--mock / --no-mock` | `--no-mock` | Use mock LLM |
-| `--steering MODE` | `auto` | `auto` \| `review-low` \| `review-all` |
-| `--threshold FLOAT` | `0.70` | Critic pass threshold (0.0–1.0) |
-| `--workers N` | `1` | Parallel LLM workers |
-| `--output PATH` | `data/raw_dataset.jsonl` | Output file path |
-| `--no-dashboard` | off | Disable Rich live dashboard |
+| Flag                 | Default                  | Description                            |
+| -------------------- | ------------------------ | -------------------------------------- |
+| `--input PATH`       | bundled sample           | Source data file                       |
+| `--mock / --no-mock` | `--no-mock`              | Use mock LLM                           |
+| `--steering MODE`    | `auto`                   | `auto` \| `review-low` \| `review-all` |
+| `--threshold FLOAT`  | `0.70`                   | Critic pass threshold (0.0–1.0)        |
+| `--workers N`        | `1`                      | Parallel LLM workers                   |
+| `--output PATH`      | `data/raw_dataset.jsonl` | Output file path                       |
+| `--no-dashboard`     | off                      | Disable Rich live dashboard            |
 
 ### Steering modes explained
 
-| Mode | Behaviour |
-|------|-----------|
-| `auto` | Critic score ≥ threshold → ACCEPT; < threshold − 0.25 → REJECT; between → FIX_REQUIRED. No human needed. |
-| `review-low` | Samples below `--threshold` are surfaced for human review. All others auto-accept. |
+| Mode         | Behaviour                                                                                                                           |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `auto`       | Critic score ≥ threshold → ACCEPT; < threshold − 0.25 → REJECT; between → FIX_REQUIRED. No human needed.                            |
+| `review-low` | Samples below `--threshold` are surfaced for human review. All others auto-accept.                                                  |
 | `review-all` | Every sample shown to human with critic scores. Human keys: `a`=approve, `r`=reject, `f`=fix, `s`=skip, `q`=quit, `?`=show content. |
 
 ### Live dashboard
@@ -194,20 +194,20 @@ python main.py evolve INPUT_PATH [OPTIONS]
 
 ### Options
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--rounds N` | `2` | Number of evolution rounds |
-| `--ops LIST` | all 4 ops | Comma-separated evolution operations |
-| `--output PATH` | `data/evolved_prompts.jsonl` | Output file |
+| Flag            | Default                      | Description                          |
+| --------------- | ---------------------------- | ------------------------------------ |
+| `--rounds N`    | `2`                          | Number of evolution rounds           |
+| `--ops LIST`    | all 4 ops                    | Comma-separated evolution operations |
+| `--output PATH` | `data/evolved_prompts.jsonl` | Output file                          |
 
 ### Available operations
 
-| Operation | Effect |
-|-----------|--------|
-| `add_constraints` | Add specific constraints to make the prompt harder |
-| `deepen` | Deepen the required reasoning or detail level |
-| `concretise` | Replace vague language with concrete specifics |
-| `increase_reasoning` | Require explicit multi-step reasoning |
+| Operation            | Effect                                             |
+| -------------------- | -------------------------------------------------- |
+| `add_constraints`    | Add specific constraints to make the prompt harder |
+| `deepen`             | Deepen the required reasoning or detail level      |
+| `concretise`         | Replace vague language with concrete specifics     |
+| `increase_reasoning` | Require explicit multi-step reasoning              |
 
 ### Examples
 
@@ -230,7 +230,7 @@ python main.py guidelines
 
 ## Exit codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | Success |
-| `1` | Fatal error (file not found, bad config, etc.) |
+| Code | Meaning                                        |
+| ---- | ---------------------------------------------- |
+| `0`  | Success                                        |
+| `1`  | Fatal error (file not found, bad config, etc.) |

@@ -1,8 +1,8 @@
 # Metrics Guide
 
 SynthDataLab computes **10 quality metrics** across every dataset, split into
-three groups: *structural quality*, *confidence stats*, and *collapse
-early-warning*.
+three groups: _structural quality_, _confidence stats_, and _collapse
+early-warning_.
 
 Metrics are computed twice — on the raw (pre-filter) dataset and the filtered
 dataset — so the report shows before-vs-after improvement.
@@ -11,18 +11,18 @@ dataset — so the report shows before-vs-after improvement.
 
 ## Quick reference table
 
-| # | Metric | Range | Higher = ? | Collapse relevance |
-|---|--------|-------|------------|-------------------|
-| 1 | Schema Validity Rate | 0–1 | Better | — |
-| 2 | Task Consistency Score | 0–1 | Better | — |
-| 3 | Completeness Score | 0–1 | Better | — |
-| 4 | Hallucination Rate | 0–1 | **Worse** | Indirect |
-| 5 | Diversity Score (TTR) | 0–1 | Better | ✓ Core |
-| 6 | Mean Confidence | 0–1 | Better | — |
-| 7 | Min / Max Confidence | 0–1 | — | — |
-| 8 | Vocabulary Entropy | bits | Better | ✓ Core |
-| 9 | Bigram Entropy | bits | Better | ✓ Core |
-| 10 | Collapse Risk Score | 0–1 | **Worse** | ✓ Composite |
+| #   | Metric                 | Range | Higher = ? | Collapse relevance |
+| --- | ---------------------- | ----- | ---------- | ------------------ |
+| 1   | Schema Validity Rate   | 0–1   | Better     | —                  |
+| 2   | Task Consistency Score | 0–1   | Better     | —                  |
+| 3   | Completeness Score     | 0–1   | Better     | —                  |
+| 4   | Hallucination Rate     | 0–1   | **Worse**  | Indirect           |
+| 5   | Diversity Score (TTR)  | 0–1   | Better     | ✓ Core             |
+| 6   | Mean Confidence        | 0–1   | Better     | —                  |
+| 7   | Min / Max Confidence   | 0–1   | —          | —                  |
+| 8   | Vocabulary Entropy     | bits  | Better     | ✓ Core             |
+| 9   | Bigram Entropy         | bits  | Better     | ✓ Core             |
+| 10  | Collapse Risk Score    | 0–1   | **Worse**  | ✓ Composite        |
 
 ---
 
@@ -36,7 +36,7 @@ dataset — so the report shows before-vs-after improvement.
 schema_validity_rate = valid_samples / total_samples
 ```
 
-A sample is *valid* if it matches the JSON Schema registered for its task
+A sample is _valid_ if it matches the JSON Schema registered for its task
 type in `schema/dataset_schema.py`.
 
 **Target:** ≥ 0.95 after filtering.
@@ -49,18 +49,18 @@ type in `schema/dataset_schema.py`.
 ### 2. Task Consistency Score
 
 **What it measures:** Does each sample's `output` dict contain the keys
-*expected* for its declared `task_type`?
+_expected_ for its declared `task_type`?
 
 ```
 task_consistency_score = consistent_samples / total_samples
 ```
 
-A sample is consistent if all *required* output keys are present and
+A sample is consistent if all _required_ output keys are present and
 non-empty (e.g., a `qa` sample must have `question`, `answer`, `evidence`).
 
 **Target:** ≥ 0.90 after filtering.
 
-**If low:** The LLM is ignoring the output schema.  Lower temperature, add
+**If low:** The LLM is ignoring the output schema. Lower temperature, add
 more few-shot examples in `prompts/few_shot_examples.py`, or tighten the
 system prompt.
 
@@ -96,8 +96,8 @@ content not supported by the source.
 
 **Target:** ≤ 0.15 (less than 15% of QA samples hallucinated).
 
-**Note:** This is a heuristic.  High-quality paraphrasing can trigger false
-positives.  Pair with human spot-checks.
+**Note:** This is a heuristic. High-quality paraphrasing can trigger false
+positives. Pair with human spot-checks.
 
 ---
 
@@ -106,7 +106,7 @@ positives.  Pair with human spot-checks.
 ### 5. Mean Confidence
 
 **What it measures:** The mean of the `metadata.confidence` field across all
-samples.  Confidence is estimated at generation time based on output
+samples. Confidence is estimated at generation time based on output
 completeness and field coverage.
 
 **Target:** ≥ 0.75.
@@ -115,16 +115,15 @@ completeness and field coverage.
 
 ### 6. Min / Max Confidence
 
-Useful for spotting outliers.  A very low `min_confidence` (< 0.3) usually
-indicates that a few samples completely failed to parse.  These should be
+Useful for spotting outliers. A very low `min_confidence` (< 0.3) usually
+indicates that a few samples completely failed to parse. These should be
 filtered out.
 
 ---
 
 ## Collapse early-warning metrics
 
-These metrics directly address **Model Collapse** (Shumailov et al., *Nature*
-2024) — the progressive lexical and semantic narrowing that occurs when a
+These metrics directly address **Model Collapse** (Shumailov et al., _Nature_ 2024) — the progressive lexical and semantic narrowing that occurs when a
 model is repeatedly fine-tuned on its own outputs.
 
 ### 7. Diversity Score (Type-Token Ratio)
@@ -196,12 +195,12 @@ collapse_risk = clamp(
 
 **Thresholds:**
 
-| Score | Label | Recommended action |
-|-------|-------|--------------------|
-| < 0.30 | LOW | No action needed |
-| 0.30–0.49 | MEDIUM | Monitor; consider more input diversity |
-| 0.50–0.69 | HIGH | Add new source materials immediately |
-| ≥ 0.70 | CRITICAL | Halt generation; investigation required |
+| Score     | Label    | Recommended action                      |
+| --------- | -------- | --------------------------------------- |
+| < 0.30    | LOW      | No action needed                        |
+| 0.30–0.49 | MEDIUM   | Monitor; consider more input diversity  |
+| 0.50–0.69 | HIGH     | Add new source materials immediately    |
+| ≥ 0.70    | CRITICAL | Halt generation; investigation required |
 
 ---
 
@@ -210,17 +209,17 @@ collapse_risk = clamp(
 When using `generate-agent`, additional **real-time driver metrics** are shown
 in the live Rich dashboard as each sample is produced:
 
-| Metric | Where shown | Update frequency |
-|--------|------------|------------------|
-| Progress (N/total, %) | Dashboard header | Every sample |
-| Throughput (samp/sec) | Dashboard header | Every sample |
-| ETA | Dashboard header | Every sample |
-| Decisions (ACCEPT/REJECT/FIX) | Decisions panel | Every sample |
-| Task type distribution | Task Types panel | Every sample |
-| Mean confidence | Quality / Health panel | Every sample |
-| Mean critic score | Quality / Health panel | Every sample |
-| Collapse risk label + score | Quality / Health panel | Every 10 samples |
-| Recent sample log | Recent Samples panel | Every sample |
+| Metric                        | Where shown            | Update frequency |
+| ----------------------------- | ---------------------- | ---------------- |
+| Progress (N/total, %)         | Dashboard header       | Every sample     |
+| Throughput (samp/sec)         | Dashboard header       | Every sample     |
+| ETA                           | Dashboard header       | Every sample     |
+| Decisions (ACCEPT/REJECT/FIX) | Decisions panel        | Every sample     |
+| Task type distribution        | Task Types panel       | Every sample     |
+| Mean confidence               | Quality / Health panel | Every sample     |
+| Mean critic score             | Quality / Health panel | Every sample     |
+| Collapse risk label + score   | Quality / Health panel | Every 10 samples |
+| Recent sample log             | Recent Samples panel   | Every sample     |
 
 See the [Multi-Agent guide](multi-agent.md) for the full dashboard screenshot
 and how to interpret the collapse gauge.
@@ -253,10 +252,10 @@ Use `evaluate` to regenerate it any time after the pipeline has run.
 
 ## Acting on warnings
 
-| Warning | Likely cause | Fix |
-|---------|-------------|-----|
-| `schema_validity_rate < 0.80` | LLM producing malformed JSON | Lower temperature; add `json_mode` if Ollama supports it |
-| `task_consistency_score < 0.80` | LLM ignoring task schema | Improve system prompt; add few-shot examples |
-| `hallucination_rate > 0.25` | Source passages too short | Use longer, richer input texts |
-| `diversity_score < 0.35` | Collapse risk emerging | Enable all 5 task types; run Evol-Instruct evolution |
-| `collapse_risk_score ≥ 0.70` | Active collapse | Immediately diversify input; retrain with external data |
+| Warning                         | Likely cause                 | Fix                                                      |
+| ------------------------------- | ---------------------------- | -------------------------------------------------------- |
+| `schema_validity_rate < 0.80`   | LLM producing malformed JSON | Lower temperature; add `json_mode` if Ollama supports it |
+| `task_consistency_score < 0.80` | LLM ignoring task schema     | Improve system prompt; add few-shot examples             |
+| `hallucination_rate > 0.25`     | Source passages too short    | Use longer, richer input texts                           |
+| `diversity_score < 0.35`        | Collapse risk emerging       | Enable all 5 task types; run Evol-Instruct evolution     |
+| `collapse_risk_score ≥ 0.70`    | Active collapse              | Immediately diversify input; retrain with external data  |

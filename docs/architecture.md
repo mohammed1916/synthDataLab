@@ -3,11 +3,11 @@
 ## Overview
 
 SynthDataLab is structured as a linear **pipeline of composable stages**, each
-implemented as an independent Python package under `dataset_builder/`.  Stages
+implemented as an independent Python package under `dataset_builder/`. Stages
 communicate via plain Python lists of well-typed dataclasses — no message
 queues, no shared mutable state, no databases.
 
-The multi-agent path adds a *vertical* supervision layer (Critic + Steering)
+The multi-agent path adds a _vertical_ supervision layer (Critic + Steering)
 that wraps the same Generator stage without modifying it.
 
 ---
@@ -108,9 +108,9 @@ dataset_builder/
 
 ### Atomic file writes
 
-`_save_jsonl()` in `main.py` never overwrites a file in-place.  It always
+`_save_jsonl()` in `main.py` never overwrites a file in-place. It always
 writes to a `.tmp` sibling, calls `os.fsync`, then `os.replace` (atomic rename
-on POSIX).  A crash mid-write leaves the original file intact — no torn
+on POSIX). A crash mid-write leaves the original file intact — no torn
 datasets.
 
 ### Thread safety
@@ -123,21 +123,21 @@ datasets.
 
 `OllamaClient.complete()` retries up to `max_retries` (default 3) times with
 exponential back-off: sleep `2^attempt + uniform(0, 1)` seconds between
-attempts.  Network flaps and model restarts are handled transparently.
+attempts. Network flaps and model restarts are handled transparently.
 
 ### Collapse prevention
 
 The pipeline computes **vocabulary entropy**, **bigram entropy**, and a
-composite **collapse risk score** per evaluation run.  The multi-agent
+composite **collapse risk score** per evaluation run. The multi-agent
 orchestrator re-evaluates collapse risk every 10 samples and pushes the
-result to the live dashboard.  A `CRITICAL` reading (≥ 0.70) triggers a
+result to the live dashboard. A `CRITICAL` reading (≥ 0.70) triggers a
 log warning and turns the dashboard gauge red.
 
 ### Checkpointing
 
 `run-all --resume` persists completed step names to `data/logs/checkpoint.json`
-after each step.  On re-run with `--resume`, already-completed steps are loaded
-from disk and skipped.  The checkpoint is cleared on successful completion.
+after each step. On re-run with `--resume`, already-completed steps are loaded
+from disk and skipped. The checkpoint is cleared on successful completion.
 
 ---
 

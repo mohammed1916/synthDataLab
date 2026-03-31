@@ -6,11 +6,11 @@ Get SynthDataLab running locally in under 5 minutes.
 
 ## Prerequisites
 
-| Requirement | Version | Purpose |
-|-------------|---------|---------|
-| Python | ≥ 3.10 | Runtime |
-| pip | any | Package installation |
-| Ollama | any | LLM backend *(optional — mock mode needs no server)* |
+| Requirement | Version | Purpose                                              |
+| ----------- | ------- | ---------------------------------------------------- |
+| Python      | ≥ 3.10  | Runtime                                              |
+| pip         | any     | Package installation                                 |
+| Ollama      | any     | LLM backend _(optional — mock mode needs no server)_ |
 
 ---
 
@@ -167,12 +167,12 @@ make docker-run        # run in Docker (mock, data in ./data-out/)
 
 After a successful run, these files are written to `dataset_builder/data/`:
 
-| File | Format | Contents |
-|------|--------|----------|
-| `raw_dataset.jsonl` | JSONL | All generated samples (including rejected) |
-| `annotated_dataset.jsonl` | JSONL | Samples with validation annotations |
-| `filtered_dataset.jsonl` | JSONL | High-quality samples only |
-| `metrics_report.json` | JSON | Full metrics report (raw vs filtered) |
-| `error_analysis.json` | JSON | Error patterns and rejection reasons |
-| `evolved_prompts.jsonl` | JSONL | Evol-Instruct evolved prompts (if run) |
-| `logs/pipeline_<ts>.log` | Text | Full run log with timestamps |
+| File                      | Format | Contents                                   |
+| ------------------------- | ------ | ------------------------------------------ |
+| `raw_dataset.jsonl`       | JSONL  | All generated samples (including rejected) |
+| `annotated_dataset.jsonl` | JSONL  | Samples with validation annotations        |
+| `filtered_dataset.jsonl`  | JSONL  | High-quality samples only                  |
+| `metrics_report.json`     | JSON   | Full metrics report (raw vs filtered)      |
+| `error_analysis.json`     | JSON   | Error patterns and rejection reasons       |
+| `evolved_prompts.jsonl`   | JSONL  | Evol-Instruct evolved prompts (if run)     |
+| `logs/pipeline_<ts>.log`  | Text   | Full run log with timestamps               |

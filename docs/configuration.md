@@ -11,15 +11,15 @@ described in [CLI Reference](cli-reference.md).
 
 Controls the language-model backend.
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `provider` | `str` | `"ollama"` | `"ollama"` or `"mock"`. Use `--mock` CLI flag to switch. |
-| `model` | `str` | `"qwen3:4b"` | Ollama model tag. Run `ollama pull <model>` first. |
-| `temperature` | `float` | `0.7` | Sampling temperature (0 = deterministic, 1 = creative). |
-| `max_tokens` | `int` | `2048` | Maximum output tokens per LLM call. |
-| `request_timeout` | `int` | `120` | Seconds before an Ollama request times out. |
-| `max_retries` | `int` | `3` | Retry attempts with exponential back-off on network errors. |
-| `base_url` | `str` | `"http://localhost:11434"` | Ollama server URL. Set via `OLLAMA_BASE_URL` env var. |
+| Field             | Type    | Default                    | Description                                                 |
+| ----------------- | ------- | -------------------------- | ----------------------------------------------------------- |
+| `provider`        | `str`   | `"ollama"`                 | `"ollama"` or `"mock"`. Use `--mock` CLI flag to switch.    |
+| `model`           | `str`   | `"qwen3:4b"`               | Ollama model tag. Run `ollama pull <model>` first.          |
+| `temperature`     | `float` | `0.7`                      | Sampling temperature (0 = deterministic, 1 = creative).     |
+| `max_tokens`      | `int`   | `2048`                     | Maximum output tokens per LLM call.                         |
+| `request_timeout` | `int`   | `120`                      | Seconds before an Ollama request times out.                 |
+| `max_retries`     | `int`   | `3`                        | Retry attempts with exponential back-off on network errors. |
+| `base_url`        | `str`   | `"http://localhost:11434"` | Ollama server URL. Set via `OLLAMA_BASE_URL` env var.       |
 
 ### Environment variable overrides
 
@@ -37,12 +37,12 @@ LOG_LEVEL=INFO
 
 Controls how synthetic samples are produced.
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `samples_per_input` | `int` | `3` | Samples generated per ingested chunk (currently advisory). |
-| `task_types` | `List[str]` | `["qa","extraction","reasoning"]` | Task types to generate. Add `"reasoning_trace"`, `"preference"` to broaden. |
-| `batch_size` | `int` | `10` | LLM call batch size (advisory). |
-| `max_workers` | `int` | `1` | Parallel LLM threads. `1` = sequential. Use `--workers N` CLI flag. |
+| Field               | Type        | Default                           | Description                                                                 |
+| ------------------- | ----------- | --------------------------------- | --------------------------------------------------------------------------- |
+| `samples_per_input` | `int`       | `3`                               | Samples generated per ingested chunk (currently advisory).                  |
+| `task_types`        | `List[str]` | `["qa","extraction","reasoning"]` | Task types to generate. Add `"reasoning_trace"`, `"preference"` to broaden. |
+| `batch_size`        | `int`       | `10`                              | LLM call batch size (advisory).                                             |
+| `max_workers`       | `int`       | `1`                               | Parallel LLM threads. `1` = sequential. Use `--workers N` CLI flag.         |
 
 ### Supported task types
 
@@ -56,13 +56,13 @@ Controls how synthetic samples are produced.
 
 Controls Evol-Instruct prompt evolution (`evolve` command).
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enabled` | `bool` | `False` | Automatically run evolution in `run-all`. |
-| `n_rounds` | `int` | `2` | Evolution rounds (each round applies one operation per seed). |
-| `operations` | `List[str]` | all 4 ops | Operations to apply: `add_constraints`, `deepen`, `concretise`, `increase_reasoning`. |
-| `max_seeds_per_round` | `int` | `50` | Cap on seeds processed per evolution round. |
-| `use_llm_evolution` | `bool` | `False` | `True` = use LLM to rewrite prompts; `False` = template substitution. |
+| Field                 | Type        | Default   | Description                                                                           |
+| --------------------- | ----------- | --------- | ------------------------------------------------------------------------------------- |
+| `enabled`             | `bool`      | `False`   | Automatically run evolution in `run-all`.                                             |
+| `n_rounds`            | `int`       | `2`       | Evolution rounds (each round applies one operation per seed).                         |
+| `operations`          | `List[str]` | all 4 ops | Operations to apply: `add_constraints`, `deepen`, `concretise`, `increase_reasoning`. |
+| `max_seeds_per_round` | `int`       | `50`      | Cap on seeds processed per evolution round.                                           |
+| `use_llm_evolution`   | `bool`      | `False`   | `True` = use LLM to rewrite prompts; `False` = template substitution.                 |
 
 ---
 
@@ -70,12 +70,12 @@ Controls Evol-Instruct prompt evolution (`evolve` command).
 
 Quality thresholds for the filtering pipeline.
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `min_confidence` | `float` | `0.60` | Samples below this confidence are discarded. |
-| `max_duplicate_similarity` | `float` | `0.85` | Jaccard similarity threshold for deduplication. |
-| `min_output_length` | `int` | `20` | Minimum output character count. |
-| `max_output_length` | `int` | `8000` | Maximum output character count. |
+| Field                      | Type    | Default | Description                                     |
+| -------------------------- | ------- | ------- | ----------------------------------------------- |
+| `min_confidence`           | `float` | `0.60`  | Samples below this confidence are discarded.    |
+| `max_duplicate_similarity` | `float` | `0.85`  | Jaccard similarity threshold for deduplication. |
+| `min_output_length`        | `int`   | `20`    | Minimum output character count.                 |
+| `max_output_length`        | `int`   | `8000`  | Maximum output character count.                 |
 
 ---
 
@@ -83,14 +83,14 @@ Quality thresholds for the filtering pipeline.
 
 File paths for all pipeline outputs.
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `data_dir` | `Path` | `dataset_builder/data/` | Root data directory. |
-| `raw_output` | `str` | `"raw_dataset.jsonl"` | Raw samples filename. |
-| `annotated_output` | `str` | `"annotated_dataset.jsonl"` | Annotated samples filename. |
-| `filtered_output` | `str` | `"filtered_dataset.jsonl"` | Filtered samples filename. |
-| `metrics_output` | `str` | `"metrics_report.json"` | Metrics report filename. |
-| `error_output` | `str` | `"error_analysis.json"` | Error analysis filename. |
+| Field              | Type   | Default                     | Description                 |
+| ------------------ | ------ | --------------------------- | --------------------------- |
+| `data_dir`         | `Path` | `dataset_builder/data/`     | Root data directory.        |
+| `raw_output`       | `str`  | `"raw_dataset.jsonl"`       | Raw samples filename.       |
+| `annotated_output` | `str`  | `"annotated_dataset.jsonl"` | Annotated samples filename. |
+| `filtered_output`  | `str`  | `"filtered_dataset.jsonl"`  | Filtered samples filename.  |
+| `metrics_output`   | `str`  | `"metrics_report.json"`     | Metrics report filename.    |
+| `error_output`     | `str`  | `"error_analysis.json"`     | Error analysis filename.    |
 
 ---
 
@@ -98,31 +98,34 @@ File paths for all pipeline outputs.
 
 Used by the `generate-agent` command.
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `steering_mode` | `SteeringMode` | `AUTO` | `auto` / `review-low` / `review-all`. |
-| `critic_pass_threshold` | `float` | `0.70` | Critic composite score ≥ this → ACCEPT. |
-| `critic_review_threshold` | `float` | `0.45` | Score between `review_threshold` and `pass_threshold` → FIX_REQUIRED. |
-| `auto_reject_below` | `float` | `0.30` | Composite score below this → hard REJECT. |
-| `collapse_check_interval` | `int` | `10` | Re-compute collapse risk every N samples. |
-| `show_dashboard` | `bool` | `True` | Show Rich live dashboard. Disable with `--no-dashboard`. |
-| `save_critic_metadata` | `bool` | `True` | Attach `critic` key to sample metadata for debugging. |
+| Field                     | Type           | Default | Description                                                           |
+| ------------------------- | -------------- | ------- | --------------------------------------------------------------------- |
+| `steering_mode`           | `SteeringMode` | `AUTO`  | `auto` / `review-low` / `review-all`.                                 |
+| `critic_pass_threshold`   | `float`        | `0.70`  | Critic composite score ≥ this → ACCEPT.                               |
+| `critic_review_threshold` | `float`        | `0.45`  | Score between `review_threshold` and `pass_threshold` → FIX_REQUIRED. |
+| `auto_reject_below`       | `float`        | `0.30`  | Composite score below this → hard REJECT.                             |
+| `collapse_check_interval` | `int`          | `10`    | Re-compute collapse risk every N samples.                             |
+| `show_dashboard`          | `bool`         | `True`  | Show Rich live dashboard. Disable with `--no-dashboard`.              |
+| `save_critic_metadata`    | `bool`         | `True`  | Attach `critic` key to sample metadata for debugging.                 |
 
 ---
 
 ## Tuning advice
 
 ### For higher-quality output
+
 - Increase `min_confidence` to `0.75`
 - Lower `critic_pass_threshold` slightly (e.g. `0.65`) to allow more FIX_REQUIRED samples rather than hard-rejecting
 - Enable `reasoning_trace` and `preference` in `task_types` for richer diversity
 
 ### For faster generation
+
 - Set `max_workers` to 4 (respects Ollama's parallel request capacity)
 - Lower `max_tokens` to `1024` for shorter LLM calls
 - Lower `max_retries` to `1` if the model is reliable
 
 ### For anti-collapse measures
+
 - Enable all 5 task types for maximum output diversity
 - Run `evolve` with 3+ rounds before generation
 - Monitor `collapse_risk_score` in the dashboard — CRITICAL (≥ 0.70) means

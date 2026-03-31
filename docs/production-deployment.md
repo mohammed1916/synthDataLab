@@ -16,6 +16,7 @@ docker build -t synthdatalab:latest .
 ```
 
 The two-stage Dockerfile produces a minimal `python:3.11-slim` image:
+
 - **Stage 1 (builder)** — installs `gcc` and compiles all Python deps
 - **Stage 2 (runtime)** — copies compiled packages; no compiler in final image
 - Runs as non-root user `appuser`
@@ -34,7 +35,7 @@ Output files appear in `./data-out/`.
 
 ### Run (real Ollama)
 
-Ollama must be reachable from inside the container.  On macOS/Windows Docker
+Ollama must be reachable from inside the container. On macOS/Windows Docker
 Desktop, `host.docker.internal` resolves to the host machine:
 
 ```bash
@@ -64,7 +65,7 @@ docker run --rm \
 ```
 
 > `--no-dashboard` is recommended in Docker since the Rich live panel
-> requires a real TTY.  Metrics are written to the log file instead.
+> requires a real TTY. Metrics are written to the log file instead.
 
 ### Open a debug shell
 
@@ -86,16 +87,16 @@ cp .env.example .env
 $EDITOR .env
 ```
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL |
-| `OLLAMA_MODEL` | `qwen3:4b` | Model tag (must be pulled via `ollama pull`) |
-| `LOG_LEVEL` | `INFO` | Python logging level |
-| `MAX_WORKERS` | `1` | Default parallel LLM threads |
-| `DEFAULT_TASK_TYPES` | `qa,extraction,reasoning` | Comma-separated task types |
+| Variable             | Default                   | Description                                  |
+| -------------------- | ------------------------- | -------------------------------------------- |
+| `OLLAMA_BASE_URL`    | `http://localhost:11434`  | Ollama server URL                            |
+| `OLLAMA_MODEL`       | `qwen3:4b`                | Model tag (must be pulled via `ollama pull`) |
+| `LOG_LEVEL`          | `INFO`                    | Python logging level                         |
+| `MAX_WORKERS`        | `1`                       | Default parallel LLM threads                 |
+| `DEFAULT_TASK_TYPES` | `qa,extraction,reasoning` | Comma-separated task types                   |
 
-> **Security note:** Never commit `.env` to version control.  It is in
-> `.gitignore`.  Use `.env.example` as a template only.
+> **Security note:** Never commit `.env` to version control. It is in
+> `.gitignore`. Use `.env.example` as a template only.
 
 ---
 
@@ -130,7 +131,7 @@ Coverage XML is uploaded to Codecov on Python 3.11.
 
 ### Job 4 — `smoke-test`
 
-Depends on `test`.  Runs the full mock pipeline and asserts all 4 output
+Depends on `test`. Runs the full mock pipeline and asserts all 4 output
 files exist:
 
 ```bash
@@ -146,7 +147,7 @@ Artifacts (output JSONL files) are retained for 7 days.
 ### Adding secrets
 
 For the Codecov upload, add `CODECOV_TOKEN` to your repository secrets
-under *Settings → Secrets and variables → Actions*.
+under _Settings → Secrets and variables → Actions_.
 
 ---
 
@@ -168,7 +169,7 @@ Format:
 ```
 
 Log files are **not rotated automatically** (each run creates a new timestamped
-file).  Add a cron job or logrotate rule to clean old logs:
+file). Add a cron job or logrotate rule to clean old logs:
 
 ```bash
 # Keep only the last 30 log files
@@ -189,8 +190,8 @@ python main.py run-all --workers 4
 python main.py run-all --workers 4 --resume
 ```
 
-The checkpoint is stored at `data/logs/checkpoint.json`.  It is cleared
-automatically on clean completion.  To force a fresh start:
+The checkpoint is stored at `data/logs/checkpoint.json`. It is cleared
+automatically on clean completion. To force a fresh start:
 
 ```bash
 rm dataset_builder/data/logs/checkpoint.json
@@ -200,20 +201,20 @@ rm dataset_builder/data/logs/checkpoint.json
 
 ## Performance tuning
 
-| Bottleneck | Diagnosis | Remedy |
-|------------|-----------|--------|
-| Slow generation | `throughput < 1 samp/sec` in dashboard | Increase `--workers` (try 4); switch to a faster model; lower `max_tokens` |
-| High rejection rate | `REJECT > 30%` | Check input quality; lower `--threshold`; use `review-low` to inspect |
-| High collapse risk | Dashboard gauge ≥ MEDIUM | Add more diverse source material; enable all 5 task types; run `evolve` |
-| OOM in parallel mode | Worker crashes | Reduce `--workers`; reduce `max_tokens` |
-| Disk space | Large JSONL files | Compress: `gzip data/*.jsonl` |
+| Bottleneck           | Diagnosis                              | Remedy                                                                     |
+| -------------------- | -------------------------------------- | -------------------------------------------------------------------------- |
+| Slow generation      | `throughput < 1 samp/sec` in dashboard | Increase `--workers` (try 4); switch to a faster model; lower `max_tokens` |
+| High rejection rate  | `REJECT > 30%`                         | Check input quality; lower `--threshold`; use `review-low` to inspect      |
+| High collapse risk   | Dashboard gauge ≥ MEDIUM               | Add more diverse source material; enable all 5 task types; run `evolve`    |
+| OOM in parallel mode | Worker crashes                         | Reduce `--workers`; reduce `max_tokens`                                    |
+| Disk space           | Large JSONL files                      | Compress: `gzip data/*.jsonl`                                              |
 
 ---
 
 ## File size limits
 
-The ingestion layer enforces a **50 MB per-file limit**.  Files larger than
-this will raise a `ValueError` with a human-readable message.  To process
+The ingestion layer enforces a **50 MB per-file limit**. Files larger than
+this will raise a `ValueError` with a human-readable message. To process
 larger corpora, split them first:
 
 ```bash

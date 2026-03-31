@@ -1,7 +1,7 @@
 # Multi-Agent System
 
 The `generate-agent` command overlays a **supervised generation loop** on top
-of the standard LLM generation stage.  Three agents collaborate:
+of the standard LLM generation stage. Three agents collaborate:
 
 1. **Generator Agent** — the same `DatasetGenerator` used in `run-all`,
    operated in streaming mode (one sample at a time via `generate_stream`).
@@ -87,13 +87,13 @@ coherence = filled_required_keys / total_required_keys
 
 Required keys per task type:
 
-| Task type | Required keys |
-|-----------|---------------|
-| `qa` | `question`, `answer`, `evidence` |
-| `extraction` | `entities`, `relations`, `key_facts` |
-| `reasoning` | `reasoning_steps`, `conclusion`, `confidence_explanation` |
-| `reasoning_trace` | `think`, `answer`, `verification`, `confidence` |
-| `preference` | `prompt`, `chosen`, `rejected`, `preference_margin` |
+| Task type         | Required keys                                             |
+| ----------------- | --------------------------------------------------------- |
+| `qa`              | `question`, `answer`, `evidence`                          |
+| `extraction`      | `entities`, `relations`, `key_facts`                      |
+| `reasoning`       | `reasoning_steps`, `conclusion`, `confidence_explanation` |
+| `reasoning_trace` | `think`, `answer`, `verification`, `confidence`           |
+| `preference`      | `prompt`, `chosen`, `rejected`, `preference_margin`       |
 
 ### Axis 3 — Groundedness (0–1)
 
@@ -133,7 +133,7 @@ The critic metadata is attached to `sample["metadata"]["critic"]` when
 
 ### AUTO
 
-All decisions are made by the threshold comparison.  No user interaction.
+All decisions are made by the threshold comparison. No user interaction.
 
 ```bash
 python main.py generate-agent --mock --steering auto --threshold 0.70
@@ -142,7 +142,7 @@ python main.py generate-agent --mock --steering auto --threshold 0.70
 ### REVIEW_LOW
 
 The human is shown only samples that score below `--threshold`.
-High-scoring samples flow through automatically.  This is the most practical
+High-scoring samples flow through automatically. This is the most practical
 mode: you only spend time reviewing borderline cases.
 
 ```bash
@@ -167,7 +167,7 @@ When the human review prompt appears:
 
 ### REVIEW_ALL
 
-Every sample is shown to the human.  Best for small batches or auditing a
+Every sample is shown to the human. Best for small batches or auditing a
 new model's output quality.
 
 ```bash
@@ -178,14 +178,14 @@ python main.py generate-agent --mock --steering review-all
 
 ## Human steering keys
 
-| Key | Action |
-|-----|--------|
-| `a` (or Enter) | **Approve** — add to accepted list |
-| `r` | **Reject** — add to rejected list (not saved) |
-| `f` | **Fix required** — add to fix_required list |
-| `s` | **Skip** — pass through without critic judgement (treat as ACCEPT) |
-| `q` | **Quit** — stop generation; save what was collected so far |
-| `?` | **Show** — pretty-print the full sample JSON |
+| Key            | Action                                                             |
+| -------------- | ------------------------------------------------------------------ |
+| `a` (or Enter) | **Approve** — add to accepted list                                 |
+| `r`            | **Reject** — add to rejected list (not saved)                      |
+| `f`            | **Fix required** — add to fix_required list                        |
+| `s`            | **Skip** — pass through without critic judgement (treat as ACCEPT) |
+| `q`            | **Quit** — stop generation; save what was collected so far         |
+| `?`            | **Show** — pretty-print the full sample JSON                       |
 
 ---
 
@@ -194,12 +194,12 @@ python main.py generate-agent --mock --steering review-all
 Every `collapse_check_interval` (default 10) samples the orchestrator calls
 `compute_metrics(accepted_so_far)` and pushes the result to the dashboard:
 
-| Score | Label | Dashboard colour | Recommended action |
-|-------|-------|------------------|--------------------|
-| < 0.30 | LOW | 🟢 Green | None |
-| 0.30–0.49 | MEDIUM | 🟡 Yellow | Monitor |
-| 0.50–0.69 | HIGH | 🔴 Red | Diversify input sources |
-| ≥ 0.70 | CRITICAL | 🔴 Red bold | Halt; add new sources; re-run |
+| Score     | Label    | Dashboard colour | Recommended action            |
+| --------- | -------- | ---------------- | ----------------------------- |
+| < 0.30    | LOW      | 🟢 Green         | None                          |
+| 0.30–0.49 | MEDIUM   | 🟡 Yellow        | Monitor                       |
+| 0.50–0.69 | HIGH     | 🔴 Red           | Diversify input sources       |
+| ≥ 0.70    | CRITICAL | 🔴 Red bold      | Halt; add new sources; re-run |
 
 A `CRITICAL` reading also emits a `WARNING` log line.
 
@@ -241,6 +241,6 @@ the `generate-agent` command.
 
 ### Make the critic call a real LLM
 
-Replace `CriticAgent.score()` with an LLM call that asks: *"Rate this sample
-on a scale of 0–10 for relevance, coherence, groundedness, and fluency."*
-Parse the response into a `CriticScore`.  The rest of the system is unchanged.
+Replace `CriticAgent.score()` with an LLM call that asks: _"Rate this sample
+on a scale of 0–10 for relevance, coherence, groundedness, and fluency."_
+Parse the response into a `CriticScore`. The rest of the system is unchanged.
