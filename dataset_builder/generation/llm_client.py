@@ -134,6 +134,8 @@ class MockLLMClient(BaseLLMClient):
             "qa": self._gen_qa,
             "extraction": self._gen_extraction,
             "reasoning": self._gen_reasoning,
+            "reasoning_trace": self._gen_reasoning_trace,
+            "preference": self._gen_preference,
         }
         gen_fn = generators.get(task_type, self._gen_qa)
         output = gen_fn(passage, introduce_defect)
@@ -256,11 +258,142 @@ class MockLLMClient(BaseLLMClient):
 
         return result
 
-    # ── Helpers ───────────────────────────────────────────────────────────────
+    def _gen_reasoning_trace(self, passage: str, defect: bool) -> Dict[str, Any]:
+        """Generate an o1/R1-style extended reasoning trace with self-correction."""
+        sentences = self._sentences(passage)
+        topic = " ".join(passage.split()[:8]) + "..."
+        first_s = sentences[0][:150] if sentences else passage[:150]
+        last_s = sentences[-1][:120] if len(sentences) > 1 else passage[-120:]
+        words = passage.split()
+        mid_word = words[len(words) // 2] if words else "concept"
+
+        think_block = (
+            "<think>\n"
+            f"Let me carefully reason through this passage about {topic}\n\n"
+            f"First pass: the key claim seems to be '{first_s}'\n\n"
+            f"Wait — I should check whether I'm reading that correctly. "
+            f"The phrase '{mid_word}' is important here. Let me re-examine.\n\n"
+            "Actually, I overcomplicated my initial reading. The passage is making "
+            f"a simpler, more direct point: {topic}\n\n"
+            f"Supporting evidence: '{last_s}'\n\n"
+            "This is directly stated in the text — I don't need to extrapolate. "
+            "My conclusion is well-grounded.\n"
+            "</think>"
+        )
+        answer = (
+            f"The passage establishes that {topic} "
+            f"This is directly evidenced by: '{first_s[:120]}'"
+        )
+        verification = (
+            "Cross-check confirms: conclusion uses only information explicitly "
+            "present in the passage without external assumptions."
+        )
+        confidence = round(self._rng.uniform(0.78, 0.97), 2)
+
+        result: Dict[str, Any] = {
+            "think": think_block,
+            "answer": answer,
+            "verification": verification,
+            "confidence": confidence,
+        }
+
+        if defect:
+            defect_type = self._rng.choice(
+                ["missing_think_tags", "empty_answer", "no_self_correction"]
+            )
+            if defect_type == "missing_think_tags":
+                result["think"] = think_block.replace("<think>", "").replace("</think>", "")
+            elif defect_type == "empty_answer":
+                result["answer"] = ""
+            elif defect_type == "no_self_correction":
+                # Think block with no backtracking — lower quality trace
+                result["think"] = (
+                    f"<think>\nThe passage is about {topic} "
+                    f"The answer is {first_s[:80]}\n</think>"
+                )
+                result["confidence"] = round(self._rng.uniform(0.30, 0.55), 2)
+
+        return result
+
+    def _gen_preference(self, passage: str, defect: bool) -> Dict[str, Any]:
+        """Generate a DPO-ready (chosen, rejected) preference pair."""
+        sentences = self._sentences(passage)
+        topic = " ".join(passage.split()[:6]) + "..."
+        key_fact = sentences[0][:200] if sentences else passage[:200]
+        last_fact = sentences[-1][:150] if len(sentences) > 1 else key_fact
+
+        question_starters = [
+            "What does the passage reveal about",
+            "Explain the relationship between",
+            "What are the key implications of",
+        ]
+        prompt_text = f"{self._rng.choice(question_starters)} {topic}?"
+
+        chosen_response = (
+            f"Based on the passage, {topic} "
+            f"The text states: '{key_fact[:180]}'. "
+            f"Furthermore, '{last_fact[:120]}'. "
+            "This evidence directly supports a grounded, accurate answer "
+            "without requiring external assumptions."
+        )
+        chosen_score = round(self._rng.uniform(0.80, 0.97), 2)
+
+        # Rejected response: overconfident/vague/partially wrong
+        rejected_patterns = [
+            (
+                f"{topic} is a well-known concept that has been studied extensively. "
+                "Experts generally agree that this is an important area, and the evidence "
+                "suggests there are many factors at play. The relationship is complex and "
+                "multifaceted, requiring careful consideration of all perspectives."
+            ),
+            (
+                f"The passage discusses {topic} It is widely understood that this leads to "
+                "significant consequences. Research has consistently shown positive outcomes, "
+                "though some debate remains. Overall the evidence is compelling."
+            ),
+        ]
+        rejected_response = self._rng.choice(rejected_patterns)
+        rejected_score = round(self._rng.uniform(0.15, 0.45), 2)
+
+        result: Dict[str, Any] = {
+            "prompt": prompt_text,
+            "chosen": {
+                "response": chosen_response,
+                "quality_score": chosen_score,
+            },
+            "rejected": {
+                "response": rejected_response,
+                "quality_score": rejected_score,
+            },
+            "preference_margin": round(chosen_score - rejected_score, 2),
+        }
+
+        if defect:
+            defect_type = self._rng.choice(
+                ["margin_too_small", "chosen_empty", "inverted_scores"]
+            )
+            if defect_type == "margin_too_small":
+                result["chosen"]["quality_score"] = 0.55
+                result["rejected"]["quality_score"] = 0.50
+                result["preference_margin"] = 0.05   # below useful threshold
+            elif defect_type == "chosen_empty":
+                result["chosen"]["response"] = ""
+            elif defect_type == "inverted_scores":
+                # Chosen scored lower than rejected — logic error
+                result["chosen"]["quality_score"] = 0.30
+                result["rejected"]["quality_score"] = 0.85
+                result["preference_margin"] = -0.55
+
+        return result
+
 
     @staticmethod
     def _detect_task_type(system_prompt: str) -> str:
         sp = system_prompt.lower()
+        if "reasoning trace" in sp or "inner monologue" in sp or "scratchpad" in sp:
+            return "reasoning_trace"
+        if "preference" in sp or "dpo" in sp or "chosen" in sp:
+            return "preference"
         if "question answering" in sp or "qa" in sp:
             return "qa"
         if "information extraction" in sp or "extract" in sp:

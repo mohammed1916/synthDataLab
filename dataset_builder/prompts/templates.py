@@ -25,6 +25,8 @@ class TaskType(str, Enum):
     QA = "qa"
     EXTRACTION = "extraction"
     REASONING = "reasoning"
+    REASONING_TRACE = "reasoning_trace"   # o1/R1-style extended scratchpad
+    PREFERENCE = "preference"             # DPO-ready (chosen, rejected) pairs
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -78,6 +80,43 @@ RULES:
   "conclusion": "<final conclusion>",
   "confidence_explanation": "<why you are confident or uncertain>"
 }""",
+
+    TaskType.REASONING_TRACE: """You are a high-quality dataset curation assistant that generates \
+extended reasoning traces in the style of OpenAI o1 and DeepSeek-R1.
+
+RULES:
+1. Produce a full inner monologue inside a <think>...</think> block.
+2. The <think> block MUST show genuine exploration: consider approaches, hit dead ends,
+   backtrack, self-correct at least ONCE, and converge on the best answer.
+3. After </think>, write a clean, concise final answer with no redundancy.
+4. Optionally add a one-sentence verification confirming the answer is consistent.
+5. Return ONLY a valid JSON object — no prose, no markdown code fences.
+6. The JSON must match this schema exactly:
+{
+  "think": "<think>\\nFull inner reasoning monologue...\\n</think>",
+  "answer": "<clean final answer>",
+  "verification": "<one-sentence self-check>",
+  "confidence": <float 0.0–1.0>
+}""",
+
+    TaskType.PREFERENCE: """You are a high-quality dataset curation assistant that generates \
+DPO (Direct Preference Optimisation) training pairs.
+
+RULES:
+1. From the provided passage and question, generate TWO responses:
+   - 'chosen': the ideal response — accurate, grounded, complete, well-structured.
+   - 'rejected': a flawed response — may be over-confident, partially hallucinated,
+     missing key nuance, or poorly formatted. Make it plausibly wrong, not obviously wrong.
+2. The 'chosen' response must be clearly superior to 'rejected'.
+3. Include per-response quality scores so training frameworks can weight pairs.
+4. Return ONLY a valid JSON object — no prose, no markdown code fences.
+5. The JSON must match this schema exactly:
+{
+  "prompt": "<the question or instruction>",
+  "chosen": {"response": "<ideal response>", "quality_score": <float 0.7–1.0>},
+  "rejected": {"response": "<flawed response>", "quality_score": <float 0.0–0.6>},
+  "preference_margin": <chosen.quality_score - rejected.quality_score>
+}""",
 }
 
 
@@ -126,6 +165,7 @@ class PromptTemplates:
             (system_prompt, user_prompt) strings.
         """
         t = task_type.lower()
+        # Normalise alias
         if t not in _SYSTEM_PROMPTS:
             raise ValueError(
                 f"Unknown task type '{task_type}'. "
@@ -164,6 +204,14 @@ class PromptTemplates:
             TaskType.REASONING: (
                 "Analyse the provided passage using step-by-step reasoning and "
                 "arrive at a well-supported conclusion."
+            ),
+            TaskType.REASONING_TRACE: (
+                "Produce an extended inner-monologue reasoning trace (o1/R1 style) "
+                "that explores, backtracks, self-corrects, and converges on the answer."
+            ),
+            TaskType.PREFERENCE: (
+                "Generate a DPO-ready preference pair: one ideal (chosen) response "
+                "and one flawed (rejected) response for the given passage and question."
             ),
         }
         return _instructions.get(task_type.lower(), "Process the following text.")

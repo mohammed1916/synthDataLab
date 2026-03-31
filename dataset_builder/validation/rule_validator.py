@@ -148,6 +148,10 @@ class RuleValidator:
             self._check_extraction(annotated, output)
         elif task_type == "reasoning":
             self._check_reasoning(annotated, output)
+        elif task_type == "reasoning_trace":
+            self._check_reasoning_trace(annotated, output)
+        elif task_type == "preference":
+            self._check_preference(annotated, output)
 
         if annotated.rejection_reasons:
             annotated.rule_checks_passed = False
@@ -261,6 +265,97 @@ class RuleValidator:
                 RejectionCode.OUTPUT_TOO_SHORT,
                 f"Reasoning: conclusion is very short ({len(conclusion.strip())} chars)",
             )
+
+    @staticmethod
+    def _check_reasoning_trace(
+        annotated: AnnotatedSample, output: Dict[str, Any]
+    ) -> None:
+        """Validate R1/o1-style reasoning trace samples."""
+        think = output.get("think", "")
+        answer = output.get("answer", "")
+        confidence = output.get("confidence", None)
+
+        # think block must contain proper tags
+        if not think.strip():
+            annotated.reject(RejectionCode.MISSING_FIELD, "ReasoningTrace: 'think' field is empty")
+        elif "<think>" not in think or "</think>" not in think:
+            annotated.flag_for_fix(
+                RejectionCode.WRONG_FORMAT,
+                "ReasoningTrace: 'think' field missing <think>...</think> tags",
+            )
+        elif len(think) < 100:
+            annotated.flag_for_fix(
+                RejectionCode.OUTPUT_TOO_SHORT,
+                f"ReasoningTrace: think block is very short ({len(think)} chars); "
+                "expected extended inner monologue",
+            )
+
+        if not str(answer).strip():
+            annotated.reject(RejectionCode.EMPTY_FIELD, "ReasoningTrace: 'answer' field is empty")
+        elif len(str(answer).strip()) < 10:
+            annotated.flag_for_fix(
+                RejectionCode.OUTPUT_TOO_SHORT,
+                f"ReasoningTrace: answer is very short ({len(str(answer).strip())} chars)",
+            )
+
+        if confidence is None:
+            annotated.flag_for_fix(
+                RejectionCode.MISSING_FIELD, "ReasoningTrace: 'confidence' field is missing"
+            )
+        elif not isinstance(confidence, (int, float)) or not (0.0 <= float(confidence) <= 1.0):
+            annotated.reject(
+                RejectionCode.WRONG_FORMAT,
+                f"ReasoningTrace: confidence={confidence!r} is not a float in [0, 1]",
+            )
+
+    @staticmethod
+    def _check_preference(
+        annotated: AnnotatedSample, output: Dict[str, Any]
+    ) -> None:
+        """Validate DPO preference pair samples."""
+        prompt_text = output.get("prompt", "")
+        chosen = output.get("chosen", {})
+        rejected = output.get("rejected", {})
+        margin = output.get("preference_margin", None)
+
+        if not str(prompt_text).strip():
+            annotated.reject(RejectionCode.MISSING_FIELD, "Preference: 'prompt' field is empty")
+
+        # Chosen checks
+        if not isinstance(chosen, dict):
+            annotated.reject(RejectionCode.WRONG_FORMAT, "Preference: 'chosen' must be an object")
+        else:
+            if not chosen.get("response", "").strip():
+                annotated.reject(RejectionCode.EMPTY_FIELD, "Preference: chosen.response is empty")
+            chosen_score = chosen.get("quality_score", None)
+            if chosen_score is not None and float(chosen_score) < 0.60:
+                annotated.flag_for_fix(
+                    RejectionCode.LOW_CONFIDENCE,
+                    f"Preference: chosen quality_score={chosen_score:.2f} is below 0.60 "
+                    "(pair may be too weak for DPO training)",
+                )
+
+        # Rejected checks
+        if not isinstance(rejected, dict):
+            annotated.reject(RejectionCode.WRONG_FORMAT, "Preference: 'rejected' must be an object")
+        else:
+            if not rejected.get("response", "").strip():
+                annotated.reject(RejectionCode.EMPTY_FIELD, "Preference: rejected.response is empty")
+
+        # Preference margin: must be meaningful
+        if margin is not None:
+            if float(margin) < 0:
+                annotated.reject(
+                    RejectionCode.WRONG_FORMAT,
+                    f"Preference: preference_margin={margin:.2f} is negative "
+                    "(chosen is scored lower than rejected)",
+                )
+            elif float(margin) < 0.15:
+                annotated.flag_for_fix(
+                    RejectionCode.LOW_CONFIDENCE,
+                    f"Preference: preference_margin={margin:.2f} is very small (<0.15); "
+                    "pair provides weak training signal",
+                )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

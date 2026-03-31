@@ -108,6 +108,21 @@ class MetricsReporter:
                     "filtered": filtered.mean_confidence,
                     "delta": _delta(raw.mean_confidence, filtered.mean_confidence),
                 },
+                "vocabulary_entropy_bits": {
+                    "raw": raw.vocabulary_entropy,
+                    "filtered": filtered.vocabulary_entropy,
+                    "delta": _delta(raw.vocabulary_entropy, filtered.vocabulary_entropy),
+                },
+                "bigram_entropy_bits": {
+                    "raw": raw.bigram_entropy,
+                    "filtered": filtered.bigram_entropy,
+                    "delta": _delta(raw.bigram_entropy, filtered.bigram_entropy),
+                },
+                "collapse_risk_score": {
+                    "raw": raw.collapse_risk_score,
+                    "filtered": filtered.collapse_risk_score,
+                    "alert": filtered.collapse_warning or "OK",
+                },
             },
             "task_distribution": {
                 "raw": raw.task_type_distribution,
@@ -149,56 +164,77 @@ def _rich_table(raw: DatasetMetrics, filtered: DatasetMetrics) -> None:
     table.add_column("Filtered Dataset", justify="right")
     table.add_column("Δ Improvement", justify="right")
 
+    # Each row: (label, raw_val, filt_val, higher_is_better, format_mode)
+    # format_mode: "pct" = percentage, "float2" = 2-decimal plain float, "int" = integer
     rows = [
-        ("Total Samples", raw.total_samples, filtered.total_samples, None),
-        ("Schema Validity Rate", raw.schema_validity_rate, filtered.schema_validity_rate, True),
-        ("Task Consistency Score", raw.task_consistency_score, filtered.task_consistency_score, True),
-        ("Completeness Score", raw.completeness_score, filtered.completeness_score, True),
-        ("Hallucination Rate ↓", raw.hallucination_rate, filtered.hallucination_rate, False),
-        ("Diversity Score", raw.diversity_score, filtered.diversity_score, True),
-        ("Mean Confidence", raw.mean_confidence, filtered.mean_confidence, True),
+        ("Total Samples",          raw.total_samples,          filtered.total_samples,          None,  "int"),
+        ("Schema Validity Rate",   raw.schema_validity_rate,   filtered.schema_validity_rate,   True,  "pct"),
+        ("Task Consistency Score", raw.task_consistency_score, filtered.task_consistency_score, True,  "pct"),
+        ("Completeness Score",     raw.completeness_score,     filtered.completeness_score,     True,  "pct"),
+        ("Hallucination Rate ↓",   raw.hallucination_rate,     filtered.hallucination_rate,     False, "pct"),
+        ("Diversity Score",        raw.diversity_score,        filtered.diversity_score,        True,  "pct"),
+        ("Mean Confidence",        raw.mean_confidence,        filtered.mean_confidence,        True,  "pct"),
+        ("Vocab Entropy (bits)",   raw.vocabulary_entropy,     filtered.vocabulary_entropy,     True,  "float2"),
+        ("Bigram Entropy (bits)",  raw.bigram_entropy,         filtered.bigram_entropy,         True,  "float2"),
+        ("Collapse Risk Score ↓",  raw.collapse_risk_score,    filtered.collapse_risk_score,    False, "pct"),
     ]
 
-    for name, raw_val, filt_val, higher_is_better in rows:
-        if isinstance(raw_val, int):
+    for name, raw_val, filt_val, higher_is_better, fmt in rows:
+        diff = filt_val - raw_val if not isinstance(raw_val, int) else filt_val - raw_val
+        if fmt == "int":
             rv = str(raw_val)
             fv = str(filt_val)
-            delta = f"{filt_val - raw_val:+d}"
-            color = "green" if filt_val < raw_val else "yellow"
-        else:
+            delta = f"{diff:+d}"
+            color = "green" if diff <= 0 else "yellow"
+        elif fmt == "float2":
+            rv = f"{raw_val:.2f}"
+            fv = f"{filt_val:.2f}"
+            color = "green" if (higher_is_better and diff >= 0) or (not higher_is_better and diff <= 0) else "red"
+            delta = f"[{color}]{diff:+.2f}[/{color}]"
+        else:  # "pct"
             rv = f"{raw_val:.1%}"
             fv = f"{filt_val:.1%}"
-            diff = filt_val - raw_val
-            if higher_is_better:
-                color = "green" if diff >= 0 else "red"
-            else:
-                color = "green" if diff <= 0 else "red"
+            color = "green" if (higher_is_better and diff >= 0) or (not higher_is_better and diff <= 0) else "red"
             delta = f"[{color}]{diff:+.1%}[/{color}]"
         table.add_row(name, rv, fv, delta)
 
     console.print()
     console.print(table)
+
+    # Print collapse warning if present
+    if filtered.collapse_warning:
+        severity = "bold red" if "CRITICAL" in filtered.collapse_warning else "bold yellow"
+        console.print(f"[{severity}]⚠️  {filtered.collapse_warning}[/{severity}]")
+    elif filtered.collapse_risk_score < 0.30:
+        console.print("[bold green]✓  Collapse risk LOW — diversity is healthy.[/bold green]")
     console.print()
 
 
 def _plain_table(raw: DatasetMetrics, filtered: DatasetMetrics) -> None:
     lines = [
         "",
-        "=" * 65,
+        "=" * 70,
         "  Dataset Quality Metrics: Raw vs Filtered",
-        "=" * 65,
-        f"  {'Metric':<30} {'Raw':>10} {'Filtered':>10} {'Delta':>10}",
-        "-" * 65,
-        f"  {'Total Samples':<30} {raw.total_samples:>10d} {filtered.total_samples:>10d}",
-        f"  {'Schema Validity Rate':<30} {raw.schema_validity_rate:>10.1%} {filtered.schema_validity_rate:>10.1%} {filtered.schema_validity_rate - raw.schema_validity_rate:>+10.1%}",
-        f"  {'Task Consistency Score':<30} {raw.task_consistency_score:>10.1%} {filtered.task_consistency_score:>10.1%} {filtered.task_consistency_score - raw.task_consistency_score:>+10.1%}",
-        f"  {'Completeness Score':<30} {raw.completeness_score:>10.1%} {filtered.completeness_score:>10.1%} {filtered.completeness_score - raw.completeness_score:>+10.1%}",
-        f"  {'Hallucination Rate':<30} {raw.hallucination_rate:>10.1%} {filtered.hallucination_rate:>10.1%} {filtered.hallucination_rate - raw.hallucination_rate:>+10.1%}",
-        f"  {'Diversity Score':<30} {raw.diversity_score:>10.1%} {filtered.diversity_score:>10.1%} {filtered.diversity_score - raw.diversity_score:>+10.1%}",
-        f"  {'Mean Confidence':<30} {raw.mean_confidence:>10.2f} {filtered.mean_confidence:>10.2f} {filtered.mean_confidence - raw.mean_confidence:>+10.2f}",
-        "=" * 65,
-        "",
+        "=" * 70,
+        f"  {'Metric':<32} {'Raw':>10} {'Filtered':>10} {'Delta':>10}",
+        "-" * 70,
+        f"  {'Total Samples':<32} {raw.total_samples:>10d} {filtered.total_samples:>10d}",
+        f"  {'Schema Validity Rate':<32} {raw.schema_validity_rate:>10.1%} {filtered.schema_validity_rate:>10.1%} {filtered.schema_validity_rate - raw.schema_validity_rate:>+10.1%}",
+        f"  {'Task Consistency Score':<32} {raw.task_consistency_score:>10.1%} {filtered.task_consistency_score:>10.1%} {filtered.task_consistency_score - raw.task_consistency_score:>+10.1%}",
+        f"  {'Completeness Score':<32} {raw.completeness_score:>10.1%} {filtered.completeness_score:>10.1%} {filtered.completeness_score - raw.completeness_score:>+10.1%}",
+        f"  {'Hallucination Rate':<32} {raw.hallucination_rate:>10.1%} {filtered.hallucination_rate:>10.1%} {filtered.hallucination_rate - raw.hallucination_rate:>+10.1%}",
+        f"  {'Diversity Score':<32} {raw.diversity_score:>10.1%} {filtered.diversity_score:>10.1%} {filtered.diversity_score - raw.diversity_score:>+10.1%}",
+        f"  {'Mean Confidence':<32} {raw.mean_confidence:>10.2f} {filtered.mean_confidence:>10.2f} {filtered.mean_confidence - raw.mean_confidence:>+10.2f}",
+        f"  {'Vocab Entropy (bits)':<32} {raw.vocabulary_entropy:>10.2f} {filtered.vocabulary_entropy:>10.2f} {filtered.vocabulary_entropy - raw.vocabulary_entropy:>+10.2f}",
+        f"  {'Bigram Entropy (bits)':<32} {raw.bigram_entropy:>10.2f} {filtered.bigram_entropy:>10.2f} {filtered.bigram_entropy - raw.bigram_entropy:>+10.2f}",
+        f"  {'Collapse Risk Score':<32} {raw.collapse_risk_score:>10.2f} {filtered.collapse_risk_score:>10.2f} {filtered.collapse_risk_score - raw.collapse_risk_score:>+10.2f}",
+        "=" * 70,
     ]
+    if filtered.collapse_warning:
+        lines.append(f"  !! {filtered.collapse_warning}")
+    elif filtered.collapse_risk_score < 0.30:
+        lines.append("  OK Collapse risk LOW — diversity is healthy.")
+    lines.append("")
     print("\n".join(lines))
 
 

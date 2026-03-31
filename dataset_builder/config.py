@@ -42,6 +42,24 @@ class GenerationConfig:
 
 
 @dataclass
+class EvolutionConfig:
+    """Controls the Evol-Instruct prompt evolution stage."""
+
+    enabled: bool = False              # off by default; enable with --evolve flag
+    n_rounds: int = 2                  # evolution rounds
+    operations: List[str] = field(
+        default_factory=lambda: [
+            "add_constraints",
+            "deepen",
+            "concretise",
+            "increase_reasoning",
+        ]
+    )
+    max_seeds_per_round: int = 50
+    use_llm_evolution: bool = False    # False = template mode (no extra API calls)
+
+
+@dataclass
 class FilteringConfig:
     """Quality thresholds for the filtering pipeline."""
 
@@ -94,6 +112,7 @@ class Config:
     generation: GenerationConfig = field(default_factory=GenerationConfig)
     filtering: FilteringConfig = field(default_factory=FilteringConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)
+    evolution: EvolutionConfig = field(default_factory=EvolutionConfig)
 
     @property
     def use_mock_llm(self) -> bool:

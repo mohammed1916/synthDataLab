@@ -1,4 +1,4 @@
-"""
+"""n
 main.py — CLI entry point for the Dataset Builder pipeline.
 
 Commands
@@ -10,12 +10,14 @@ Commands
   filter      Run quality filtering on a validated (annotated) dataset
   evaluate    Compute and compare metrics for raw vs filtered datasets
   analyze     Run error analysis on an annotated dataset
+  evolve      Run Evol-Instruct prompt evolution on a seed file
   guidelines  Print human-in-the-loop annotation guidelines
 
 Usage examples
 --------------
   python main.py run-all
   python main.py run-all --input data/sample_inputs/sample_articles.json
+  python main.py evolve data/sample_inputs/sample_text.txt --rounds 2
   python main.py generate --help
 """
 from __future__ import annotations
@@ -36,6 +38,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 from config import Config, DEFAULT_CONFIG
 from ingestion.ingestor import Ingestor, IngestionResult
 from generation.generator import DatasetGenerator
+from generation.evolver import PromptEvolver, EvolveConfig
 from schema.dataset_schema import DatasetSample
 from validation.rule_validator import RuleValidator, annotation_guidelines
 from validation.llm_reviewer import LLMReviewer
@@ -408,6 +411,115 @@ def analyze_cmd(mock: bool):
 def guidelines_cmd():
     """Print the human-in-the-loop annotation guidelines."""
     click.echo(annotation_guidelines())
+
+
+@cli.command("evolve")
+@click.argument("input_path")
+@click.option(
+    "--rounds", default=2, show_default=True,
+    help="Number of Evol-Instruct evolution rounds.",
+)
+@click.option(
+    "--ops",
+    default="add_constraints,deepen,concretise,increase_reasoning",
+    show_default=True,
+    help="Comma-separated list of evolution operations to apply.",
+)
+@click.option(
+    "--mock/--no-mock", default=False, show_default=True,
+    help="Use mock LLM for evolution (always uses template mode regardless).",
+)
+@click.option(
+    "--output", "output_path", default=None,
+    help="Path to write evolved prompts JSONL. Default: data/evolved_prompts.jsonl",
+)
+def evolve_cmd(
+    input_path: str,
+    rounds: int,
+    ops: str,
+    mock: bool,
+    output_path: Optional[str],
+):
+    """
+    Run Evol-Instruct prompt evolution on seed instructions from INPUT_PATH.
+
+    Reads the file as plain text lines (one instruction per line) or as
+    JSON articles (extracts the 'content' field). Writes evolved prompts to
+    JSONL with full lineage metadata.
+
+    Example::
+
+        python main.py evolve data/sample_inputs/sample_text.txt --rounds 3
+    """
+    cfg = _load_config(mock=mock)
+    _header("EVOL-INSTRUCT PROMPT EVOLUTION")
+
+    # Load seeds from file
+    p = Path(input_path)
+    if not p.exists():
+        _echo(f"[red]Input file not found: {p}[/red]")
+        sys.exit(1)
+
+    seeds: List[str] = []
+    if p.suffix.lower() == ".json":
+        raw_json = json.loads(p.read_text(encoding="utf-8"))
+        if isinstance(raw_json, list):
+            for item in raw_json:
+                if isinstance(item, dict) and "content" in item:
+                    seeds.append(item["content"][:500])
+                elif isinstance(item, str):
+                    seeds.append(item)
+        else:
+            seeds.append(str(raw_json)[:500])
+    else:
+        text = p.read_text(encoding="utf-8")
+        import re as _re
+        lines = [ln.strip() for ln in _re.split(r"[.?!]\s+", text) if len(ln.strip()) > 20]
+        seeds = lines[:50]
+
+    if not seeds:
+        _echo("[yellow]No usable seed prompts found in the input file.[/yellow]")
+        sys.exit(0)
+
+    _echo(f"  Loaded [bold]{len(seeds)}[/bold] seed prompt(s) from {p.name}")
+
+    operations = [o.strip() for o in ops.split(",") if o.strip()]
+    evolve_cfg = EvolveConfig(
+        n_rounds=rounds,
+        operations=operations,
+        use_llm_evolution=False,  # always template mode for now
+    )
+    evolver = PromptEvolver(config=evolve_cfg, seed=42)
+    evolved = evolver.evolve(seeds, n_rounds=rounds)
+
+    surviving = [ep for ep in evolved if not ep.discarded]
+    discarded = [ep for ep in evolved if ep.discarded]
+
+    _echo(
+        f"  Evolution complete: [bold]{len(evolved)}[/bold] total evolved, "
+        f"[green]{len(surviving)}[/green] surviving, "
+        f"[yellow]{len(discarded)}[/yellow] discarded"
+    )
+
+    # Stats by operation
+    from collections import Counter
+    op_counts = Counter(ep.operation for ep in surviving)
+    for op, count in op_counts.most_common():
+        _echo(f"    {op:<26} {count} prompt(s)")
+
+    # Show top-3 most complex evolved prompts
+    top3 = sorted(surviving, key=lambda e: e.complexity_score, reverse=True)[:3]
+    _echo("\n  Top-3 most complex evolved prompts:")
+    for i, ep in enumerate(top3, 1):
+        _echo(
+            f"    [{i}] [{ep.operation}] score={ep.complexity_score:.3f}\n"
+            f"        {ep.prompt[:140]}{'...' if len(ep.prompt) > 140 else ''}"
+        )
+
+    # Write output
+    out_path = Path(output_path) if output_path else cfg.storage.data_dir / "evolved_prompts.jsonl"
+    _save_jsonl([ep.to_dict() for ep in evolved], out_path)
+    _echo(f"\n  Evolved prompts saved → [cyan]{out_path}[/cyan]")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

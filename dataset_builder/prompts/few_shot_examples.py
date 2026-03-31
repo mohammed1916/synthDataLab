@@ -135,4 +135,86 @@ FEW_SHOT_EXAMPLES: dict = {
             },
         },
     ],
+
+    # ─────────────────────────────────────────────────────────────────────────
+    "reasoning_trace": [
+        {
+            "input": (
+                "Antibiotics are compounds that kill or inhibit bacteria. "
+                "They are ineffective against viruses. Overuse of antibiotics "
+                "leads to antibiotic-resistant bacteria, sometimes called "
+                "'superbugs'. In 2019, WHO designated antimicrobial resistance "
+                "as one of the top 10 global public health threats."
+            ),
+            "output": {
+                "think": (
+                    "<think>\n"
+                    "Let me work through this carefully.\n\n"
+                    "The question is about what conclusion we can draw from this passage.\n\n"
+                    "Initial read: The passage says antibiotics kill bacteria but not viruses, "
+                    "and overuse causes resistance. WHO flagged it as a top-10 global threat.\n\n"
+                    "Wait — I should check: is the WHO statement from the passage or am I "
+                    "adding external knowledge? Let me re-read... yes, '2019, WHO designated' "
+                    "is explicitly in the passage. Good, I'm grounded.\n\n"
+                    "Is there a logical conclusion here? The chain is:\n"
+                    "  1. Antibiotics only work on bacteria.\n"
+                    "  2. Overuse → resistance.\n"
+                    "  3. WHO severity rating confirms this is a major issue.\n\n"
+                    "I was initially going to say 'antibiotics are dangerous' but that's "
+                    "too broad. The more precise conclusion is about the consequence of overuse. "
+                    "Let me refine: the main conclusion is that antibiotic overuse is creating "
+                    "a global public health crisis through resistant superbugs.\n\n"
+                    "Verification: Does this follow from the text? Yes — directly stated.\n"
+                    "</think>"
+                ),
+                "answer": (
+                    "Antibiotic overuse drives the emergence of resistant bacteria (superbugs), "
+                    "which the WHO identified as a top-10 global public health threat in 2019. "
+                    "This makes responsible antibiotic stewardship critical."
+                ),
+                "verification": (
+                    "Confirmed: both the mechanism (overuse → resistance) and the WHO severity "
+                    "classification are explicitly stated in the passage."
+                ),
+                "confidence": 0.96,
+            },
+        },
+    ],
+
+    # ─────────────────────────────────────────────────────────────────────────
+    "preference": [
+        {
+            "input": (
+                "mRNA vaccines work by delivering messenger RNA into cells. "
+                "The cell's ribosomes read the mRNA and produce the target antigen "
+                "(e.g., the spike protein of SARS-CoV-2). The immune system then "
+                "mounts a response, creating memory cells for future protection. "
+                "The mRNA does not enter the cell nucleus and cannot alter DNA."
+            ),
+            "output": {
+                "prompt": "How do mRNA vaccines work and can they change your DNA?",
+                "chosen": {
+                    "response": (
+                        "mRNA vaccines deliver messenger RNA into your cells. Your ribosomes "
+                        "use this mRNA as a blueprint to produce the target antigen — for "
+                        "COVID-19 vaccines, that is the spike protein. Your immune system "
+                        "recognises the antigen, mounts a response, and creates memory cells "
+                        "for long-term protection. Crucially, the mRNA never enters the "
+                        "cell nucleus and cannot interact with or alter your DNA."
+                    ),
+                    "quality_score": 0.95,
+                },
+                "rejected": {
+                    "response": (
+                        "mRNA vaccines basically reprogram your cells to fight viruses. "
+                        "They inject genetic material that teaches your body to produce "
+                        "antibodies. There is some debate about whether they can affect "
+                        "your DNA, but scientists say the effect is minimal."
+                    ),
+                    "quality_score": 0.28,
+                },
+                "preference_margin": 0.67,
+            },
+        },
+    ],
 }

@@ -1,23 +1,34 @@
-"""
+"""n
 metrics.py — Quantitative dataset quality metrics.
 
 Metrics computed
 ----------------
-1. Schema Validity Rate       — fraction of samples passing JSON schema
-2. Task Consistency Score     — fraction with task-type-consistent output keys
-3. Completeness Score         — mean fraction of required fields present
-4. Hallucination Rate         — heuristic: QA answers with < 25 % word overlap
-                                 with their input text
-5. Diversity Score            — type-token ratio of output vocabulary (lexical diversity)
+1.  Schema Validity Rate       — fraction of samples passing JSON schema
+2.  Task Consistency Score     — fraction with task-type-consistent output keys
+3.  Completeness Score         — mean fraction of required fields present
+4.  Hallucination Rate         — heuristic: QA answers with < 25 % word overlap
+                                  with their input text
+5.  Diversity Score            — type-token ratio of output vocabulary (lexical diversity)
+6.  Mean Confidence            — mean model confidence across all samples
+
+Collapse Early-Warning Metrics (new)
+--------------------------------------
+7.  Vocabulary Entropy         — Shannon entropy of token frequency distribution
+                                  (lower = distribution collapse)
+8.  Bigram Entropy             — Shannon entropy of bigram frequency distribution
+9.  Collapse Risk Score        — composite 0-1 score; ≥ 0.7 triggers RED alert
+10. Collapse Warning           — human-readable warning string or None
 
 Metrics are computed on both the raw and filtered datasets so the report
 can show before-vs-after improvement.
 """
 from __future__ import annotations
 
+import math
 import re
-from dataclasses import dataclass, asdict
-from typing import Any, Dict, List, Set
+from collections import Counter
+from dataclasses import dataclass, asdict, field
+from typing import Any, Dict, List, Optional, Set
 
 from schema.dataset_schema import validate_sample
 
@@ -26,9 +37,17 @@ _REQUIRED_OUTPUT_KEYS: Dict[str, List[str]] = {
     "qa": ["question", "answer", "evidence"],
     "extraction": ["entities", "relations", "key_facts"],
     "reasoning": ["reasoning_steps", "conclusion", "confidence_explanation"],
+    "reasoning_trace": ["think", "answer", "verification", "confidence"],
+    "preference": ["prompt", "chosen", "rejected", "preference_margin"],
 }
 
 _HALLUCINATION_OVERLAP_THRESHOLD = 0.20
+
+# Collapse alert thresholds
+_COLLAPSE_ENTROPY_FLOOR = 6.0      # bits — below this vocabulary is suspiciously narrow
+_COLLAPSE_TTR_FLOOR = 0.35         # type-token ratio — below this lexical diversity is critical
+_COLLAPSE_RISK_WARN = 0.50         # score >= this → WARNING
+_COLLAPSE_RISK_CRITICAL = 0.70     # score >= this → CRITICAL (halt recommended)
 
 
 @dataclass
@@ -50,6 +69,12 @@ class DatasetMetrics:
     mean_confidence: float = 0.0
     min_confidence: float = 0.0
     max_confidence: float = 0.0
+
+    # ── Collapse early-warning metrics ──────────────────────────────────────
+    vocabulary_entropy: float = 0.0    # Shannon entropy bits; higher = more diverse
+    bigram_entropy: float = 0.0        # Bigram entropy bits
+    collapse_risk_score: float = 0.0   # Composite 0-1; >= 0.7 = CRITICAL
+    collapse_warning: Optional[str] = None   # Human-readable warning or None
 
     def __post_init__(self):
         if self.task_type_distribution is None:
@@ -117,6 +142,15 @@ def compute_metrics(samples: List[Dict[str, Any]]) -> DatasetMetrics:
         m.mean_confidence = sum(confidences) / len(confidences)
         m.min_confidence = min(confidences)
         m.max_confidence = max(confidences)
+
+    # ── Collapse early-warning metrics ──────────────────────────────────────
+    all_tokens = _collect_tokens(samples)
+    m.vocabulary_entropy = _shannon_entropy(Counter(all_tokens))
+    bigrams = _collect_bigrams(all_tokens)
+    m.bigram_entropy = _shannon_entropy(Counter(bigrams))
+    m.collapse_risk_score, m.collapse_warning = _collapse_risk(
+        m.diversity_score, m.vocabulary_entropy, m.hallucination_rate
+    )
 
     return m
 
@@ -187,3 +221,86 @@ def _diversity_score(samples: List[Dict[str, Any]]) -> float:
 
 def _words(text: str) -> Set[str]:
     return set(re.findall(r"\b\w{2,}\b", text.lower()))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Collapse early-warning helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _collect_tokens(samples: List[Dict[str, Any]]) -> List[str]:
+    """Collect all lowercase word tokens from all sample outputs."""
+    tokens: List[str] = []
+    for s in samples:
+        text = str(s.get("output", ""))
+        tokens.extend(re.findall(r"\b\w{3,}\b", text.lower()))
+    return tokens
+
+
+def _collect_bigrams(tokens: List[str]) -> List[str]:
+    """Return consecutive bigrams as 'w1_w2' strings."""
+    if len(tokens) < 2:
+        return []
+    return [f"{tokens[i]}_{tokens[i+1]}" for i in range(len(tokens) - 1)]
+
+
+def _shannon_entropy(counter: Counter) -> float:
+    """
+    Compute Shannon entropy (bits) for a frequency distribution.
+    H = -Σ p(x) log2 p(x)
+    Returns 0.0 for empty distributions.
+    """
+    total = sum(counter.values())
+    if total == 0:
+        return 0.0
+    return -sum(
+        (c / total) * math.log2(c / total)
+        for c in counter.values()
+        if c > 0
+    )
+
+
+def _collapse_risk(
+    diversity_score: float,
+    vocab_entropy: float,
+    hallucination_rate: float,
+) -> tuple:
+    """
+    Compute a composite collapse risk score ∈ [0, 1].
+
+    Weights:
+      40% — vocabulary entropy (normalised; floor at 6 bits, full at 14 bits)
+      40% — diversity score (TTR; below 0.35 = danger zone)
+      20% — hallucination rate (higher hallucination = higher collapse risk)
+
+    Returns (risk_score, warning_string | None).
+    """
+    # Entropy component: 0 when at or below floor, 1 when fully healthy (≥ 14 bits)
+    _MAX_ENTROPY = 14.0
+    entropy_health = min(max(vocab_entropy - _COLLAPSE_ENTROPY_FLOOR, 0) /
+                         (_MAX_ENTROPY - _COLLAPSE_ENTROPY_FLOOR), 1.0)
+    entropy_risk = 1.0 - entropy_health
+
+    # Diversity component: 0 when TTR ≥ 0.65 (healthy), 1 when TTR ≤ 0.35 (critical)
+    diversity_risk = max(0.0, min(1.0, (0.65 - diversity_score) / (0.65 - _COLLAPSE_TTR_FLOOR)))
+
+    # Hallucination component: direct proportion (rate already ∈ [0, 1])
+    hallucination_risk = min(hallucination_rate * 2.0, 1.0)  # doubled weight
+
+    risk = 0.40 * entropy_risk + 0.40 * diversity_risk + 0.20 * hallucination_risk
+    risk = round(risk, 4)
+
+    warning: Optional[str] = None
+    if risk >= _COLLAPSE_RISK_CRITICAL:
+        warning = (
+            f"CRITICAL — Collapse risk {risk:.2f}. "
+            f"Vocab entropy={vocab_entropy:.2f} bits, TTR={diversity_score:.3f}. "
+            "HALT generation and diversify input sources immediately."
+        )
+    elif risk >= _COLLAPSE_RISK_WARN:
+        warning = (
+            f"WARNING — Collapse risk {risk:.2f}. "
+            f"Vocab entropy={vocab_entropy:.2f} bits, TTR={diversity_score:.3f}. "
+            "Increase generation temperature and broaden input topics."
+        )
+
+    return risk, warning

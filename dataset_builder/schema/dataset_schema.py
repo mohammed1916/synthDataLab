@@ -9,7 +9,7 @@ Schema hierarchy
 DatasetSample
 ├── id           : str  — unique identifier (UUID-like)
 ├── input        : str  — source passage given to the LLM
-├── task_type    : enum — "qa" | "extraction" | "reasoning"
+├── task_type    : enum — "qa" | "extraction" | "reasoning" | "reasoning_trace" | "preference"
 ├── instruction  : str  — human-readable task description
 ├── output       : dict — task-specific (see sub-schemas below)
 └── metadata
@@ -41,7 +41,7 @@ DATASET_SCHEMA: Dict[str, Any] = {
     "properties": {
         "id": {"type": "string", "minLength": 1},
         "input": {"type": "string", "minLength": 10},
-        "task_type": {"type": "string", "enum": ["qa", "extraction", "reasoning"]},
+        "task_type": {"type": "string", "enum": ["qa", "extraction", "reasoning", "reasoning_trace", "preference"]},
         "instruction": {"type": "string", "minLength": 5},
         "output": {
             "type": "object",
@@ -115,10 +115,48 @@ _REASONING_OUTPUT_SCHEMA: Dict[str, Any] = {
     },
 }
 
+_REASONING_TRACE_OUTPUT_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "required": ["think", "answer", "verification", "confidence"],
+    "properties": {
+        "think": {"type": "string", "minLength": 50},
+        "answer": {"type": "string", "minLength": 3},
+        "verification": {"type": "string"},
+        "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+    },
+}
+
+_PREFERENCE_OUTPUT_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "required": ["prompt", "chosen", "rejected", "preference_margin"],
+    "properties": {
+        "prompt": {"type": "string", "minLength": 5},
+        "chosen": {
+            "type": "object",
+            "required": ["response", "quality_score"],
+            "properties": {
+                "response": {"type": "string", "minLength": 10},
+                "quality_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            },
+        },
+        "rejected": {
+            "type": "object",
+            "required": ["response", "quality_score"],
+            "properties": {
+                "response": {"type": "string", "minLength": 5},
+                "quality_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            },
+        },
+        "preference_margin": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+    },
+}
+
 TASK_OUTPUT_SCHEMAS: Dict[str, Dict] = {
     "qa": _QA_OUTPUT_SCHEMA,
     "extraction": _EXTRACTION_OUTPUT_SCHEMA,
     "reasoning": _REASONING_OUTPUT_SCHEMA,
+    "reasoning_trace": _REASONING_TRACE_OUTPUT_SCHEMA,
+    "preference": _PREFERENCE_OUTPUT_SCHEMA,
 }
 
 
@@ -270,7 +308,8 @@ def _generate_id(task_type: str) -> str:
     """Generate a short, deterministic-looking unique sample ID."""
     short_uuid = str(uuid.uuid4()).split("-")[0]
     ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-    prefix = {"qa": "QA", "extraction": "EX", "reasoning": "RS"}.get(
+    prefix = {"qa": "QA", "extraction": "EX", "reasoning": "RS",
+              "reasoning_trace": "RT", "preference": "PR"}.get(
         task_type.lower(), "XX"
     )
     return f"{prefix}_{ts}_{short_uuid}"
