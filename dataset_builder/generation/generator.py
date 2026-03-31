@@ -17,7 +17,8 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import List, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Optional, Tuple
 
 from config import Config, DEFAULT_CONFIG
 from ingestion.ingestor import IngestionResult
@@ -64,6 +65,8 @@ class DatasetGenerator:
         Generate samples from a list of IngestionResult objects.
 
         Each chunk × each enabled task type yields one sample attempt.
+        When ``config.generation.max_workers > 1`` the calls are parallelised
+        using a ``ThreadPoolExecutor`` (the LLM client is thread-safe).
 
         Args:
             ingestion_results: Normalised input records from the ingestion layer.
@@ -71,23 +74,74 @@ class DatasetGenerator:
         Returns:
             Flat list of DatasetSample objects (valid and invalid).
         """
-        samples: List[DatasetSample] = []
-        total = len(ingestion_results) * len(self.config.generation.task_types)
-        done = 0
+        # Build (chunk, task_type) work items
+        work: List[Tuple[IngestionResult, str]] = [
+            (chunk, task_type)
+            for chunk in ingestion_results
+            for task_type in self.config.generation.task_types
+        ]
+        total = len(work)
+        max_workers = max(1, self.config.generation.max_workers)
 
-        for chunk in ingestion_results:
-            for task_type in self.config.generation.task_types:
-                sample = self._generate_one(chunk, task_type)
-                if sample:
-                    samples.append(sample)
-                done += 1
-                logger.debug(
-                    "[%d/%d] Generated %s sample from '%s'",
-                    done,
-                    total,
-                    task_type,
-                    chunk.metadata.get("source", "?"),
-                )
+        samples: List[DatasetSample] = []
+
+        def _run_one(item: Tuple[IngestionResult, str]) -> Optional[DatasetSample]:
+            chunk, task_type = item
+            return self._generate_one(chunk, task_type)
+
+        try:
+            from rich.progress import Progress, SpinnerColumn, BarColumn, TaskProgressColumn, TextColumn
+            _rich_available = True
+        except ImportError:
+            _rich_available = False
+
+        if max_workers == 1:
+            # Sequential path — keeps log output predictable
+            if _rich_available:
+                from rich.progress import Progress, SpinnerColumn, BarColumn, TaskProgressColumn, TextColumn
+                from rich.console import Console
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[bold cyan]Generating[/bold cyan]"),
+                    BarColumn(),
+                    TaskProgressColumn(),
+                    console=Console(stderr=True),
+                    transient=True,
+                ) as progress:
+                    task = progress.add_task("", total=total)
+                    for item in work:
+                        s = _run_one(item)
+                        if s:
+                            samples.append(s)
+                        progress.advance(task)
+            else:
+                for item in work:
+                    s = _run_one(item)
+                    if s:
+                        samples.append(s)
+        else:
+            # Parallel path
+            logger.info("Parallel generation: %d workers × %d tasks", max_workers, total)
+            futures = {}
+            with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                for item in work:
+                    futures[pool.submit(_run_one, item)] = item
+                completed = 0
+                for fut in as_completed(futures):
+                    completed += 1
+                    try:
+                        s = fut.result()
+                        if s:
+                            samples.append(s)
+                    except Exception as exc:
+                        chunk, task_type = futures[fut]
+                        logger.error(
+                            "Worker failed for task=%s source=%s: %s",
+                            task_type,
+                            chunk.metadata.get("source", "?"),
+                            exc,
+                        )
+                    logger.debug("[%d/%d] parallel generation done", completed, total)
 
         logger.info(
             "Generation complete: %d samples from %d chunk(s), %d task type(s).",

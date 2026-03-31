@@ -17,6 +17,7 @@ import json
 import logging
 import random
 import re
+import threading
 import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
@@ -54,11 +55,17 @@ class OllamaClient(BaseLLMClient):
     The model must already be pulled: ``ollama pull qwen3:4b``
     """
 
+    #: Maximum number of request attempts before giving up.
+    MAX_RETRIES: int = 3
+    #: Base sleep time (seconds) for exponential back-off: 2^attempt + jitter.
+    _BACKOFF_BASE: float = 2.0
+
     def __init__(
         self,
         model: str = "qwen3:4b",
         base_url: str = "http://localhost:11434",
         timeout: int = 120,
+        max_retries: int = 3,
     ):
         try:
             import ollama as _ollama  # type: ignore
@@ -70,6 +77,7 @@ class OllamaClient(BaseLLMClient):
         self.model = model
         self.base_url = base_url
         self.timeout = timeout
+        self.MAX_RETRIES = max_retries
 
     def complete(
         self,
@@ -78,24 +86,48 @@ class OllamaClient(BaseLLMClient):
         temperature: float = 0.7,
         max_tokens: int = 1024,
     ) -> str:
+        import random
+        import time
+
         import ollama as _ollama  # type: ignore
 
-        # Build the messages list
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
 
-        response = _ollama.chat(
-            model=self.model,
-            messages=messages,
-            options={
-                "temperature": temperature,
-                "num_predict": max_tokens,
-            },
-            format="json",
-        )
-        return response["message"]["content"] or ""
+        last_exc: Exception = RuntimeError("No attempts made")
+        for attempt in range(1, self.MAX_RETRIES + 1):
+            try:
+                response = _ollama.chat(
+                    model=self.model,
+                    messages=messages,
+                    options={
+                        "temperature": temperature,
+                        "num_predict": max_tokens,
+                    },
+                    format="json",
+                )
+                return response["message"]["content"] or ""
+            except Exception as exc:  # network errors, model not found, etc.
+                last_exc = exc
+                if attempt < self.MAX_RETRIES:
+                    sleep_secs = (self._BACKOFF_BASE ** attempt) + random.uniform(0.0, 1.0)
+                    logger.warning(
+                        "Ollama request failed (attempt %d/%d): %s — retrying in %.1fs",
+                        attempt,
+                        self.MAX_RETRIES,
+                        exc,
+                        sleep_secs,
+                    )
+                    time.sleep(sleep_secs)
+                else:
+                    logger.error(
+                        "Ollama request failed after %d attempts: %s",
+                        self.MAX_RETRIES,
+                        exc,
+                    )
+        raise last_exc
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -116,6 +148,7 @@ class MockLLMClient(BaseLLMClient):
 
     def __init__(self, seed: int = 42):
         self._rng = random.Random(seed)
+        self._lock = threading.Lock()   # guards _rng for thread-safe parallel use
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -126,9 +159,10 @@ class MockLLMClient(BaseLLMClient):
         temperature: float = 0.7,
         max_tokens: int = 1024,
     ) -> str:
-        task_type = self._detect_task_type(system_prompt)
-        passage = self._extract_passage(user_prompt)
-        introduce_defect = self._rng.random() < self.DEFECT_RATE
+        with self._lock:
+            task_type = self._detect_task_type(system_prompt)
+            passage = self._extract_passage(user_prompt)
+            introduce_defect = self._rng.random() < self.DEFECT_RATE
 
         generators = {
             "qa": self._gen_qa,
@@ -467,10 +501,11 @@ def build_llm_client(
     model: str,
     base_url: str = "http://localhost:11434",
     timeout: int = 120,
+    max_retries: int = 3,
 ) -> BaseLLMClient:
     """Return the appropriate LLM client based on provider setting."""
     if provider == "mock":
         logger.info("Using MockLLMClient (provider=mock).")
         return MockLLMClient()
     logger.info("Using OllamaClient (model=%s, url=%s).", model, base_url)
-    return OllamaClient(model=model, base_url=base_url, timeout=timeout)
+    return OllamaClient(model=model, base_url=base_url, timeout=timeout, max_retries=max_retries)

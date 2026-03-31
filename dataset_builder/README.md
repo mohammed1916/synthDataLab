@@ -38,11 +38,11 @@ The response from every frontier lab is identical: **generate synthetic training
 
 But this creates an immediate, catastrophic engineering problem: if you generate low-quality synthetic data, or if you generate in a feedback loop without diversity controls, your model will collapse.
 
-> *See [Section 11 — Model Collapse: The Recursion Trap](#11-model-collapse-the-recursion-trap) for the full technical breakdown.*
+> _See [Section 11 — Model Collapse: The Recursion Trap](#11-model-collapse-the-recursion-trap) for the full technical breakdown._
 
 ### Why Dataset Quality Matters for AI
 
-The performance of any AI model is fundamentally bounded by the quality of its training data. *Garbage in, garbage out* is more than a cliché — it is a quantifiable phenomenon:
+The performance of any AI model is fundamentally bounded by the quality of its training data. _Garbage in, garbage out_ is more than a cliché — it is a quantifiable phenomenon:
 
 | Data Quality Issue                    | Observed Impact                                 |
 | ------------------------------------- | ----------------------------------------------- |
@@ -51,7 +51,7 @@ The performance of any AI model is fundamentally bounded by the quality of its t
 | Hallucinated answers in training data | Model inherits and amplifies the hallucinations |
 | Near-duplicate examples               | Model overfits, diversity collapses             |
 | Low-confidence generations            | Model learns from uncertain, unreliable signals |
-| Recursive synthetic contamination     | **Model collapse** — see Section 11            |
+| Recursive synthetic contamination     | **Model collapse** — see Section 11             |
 
 Large-scale AI organisations (Amazon AGI, Google DeepMind, OpenAI, Anthropic) operate entire Data Quality Engineering (DQE) teams whose sole mandate is to ensure that training data is accurate, consistent, diverse, and schema-adherent before it ever touches a model. By 2025, those same teams shifted focus to an even deeper threat: **model collapse caused by recursive synthetic training loops.**
 
@@ -504,6 +504,7 @@ This is not hyperbole. It is an engineering constraint that every major AI lab h
 The entire indexed public internet contains approximately **10 trillion tokens** of unique, high-quality text. GPT-4 consumed an estimated 13 trillion tokens for pre-training. LLaMA-3 and Gemini Ultra were trained on datasets in the 15–20 trillion token range. **The supply of novel, clean, human-generated text is now exhausted.**
 
 Key data points:
+
 - **Common Crawl** (the largest public corpus): saturated at ~70 billion pages; quality filtering reduces usable content to ~500 billion unique tokens.
 - **Books, Wikipedia, GitHub, arXiv**: all scraped to near-totality by models trained before 2024.
 - **Epoch AI (2024) projection**: high-quality language data will be exhausted at current consumption rates by 2026 — we are at that date now.
@@ -512,20 +513,20 @@ The consequence: **if you want to train the next frontier model, you must genera
 
 ### 10.2 The Scale of Synthetic Data in Production
 
-| Model / System            | Synthetic Tokens Used      | Key Synthetic Method           |
-| ------------------------- | -------------------------- | ------------------------------ |
-| Microsoft Phi-1 (2023)    | 1B tokens                  | "Textbooks Are All You Need"   |
-| Microsoft Phi-3 (2024)    | 3.3T tokens                | Filtered web + synthetic books |
-| DeepSeek-R1 (2025)        | ~800B reasoning traces     | Process reward + GRPO training |
-| Google Gemma-2 (2024)     | ~1T tokens                 | Knowledge distillation + synth |
-| Meta LLaMA-3.1 (2024)     | 15T tokens (30% synthetic) | Evol-Instruct + human filters  |
-| Anthropic Claude-3 (2024) | Undisclosed (est. majority)| Constitutional AI + RLAIF      |
+| Model / System            | Synthetic Tokens Used       | Key Synthetic Method           |
+| ------------------------- | --------------------------- | ------------------------------ |
+| Microsoft Phi-1 (2023)    | 1B tokens                   | "Textbooks Are All You Need"   |
+| Microsoft Phi-3 (2024)    | 3.3T tokens                 | Filtered web + synthetic books |
+| DeepSeek-R1 (2025)        | ~800B reasoning traces      | Process reward + GRPO training |
+| Google Gemma-2 (2024)     | ~1T tokens                  | Knowledge distillation + synth |
+| Meta LLaMA-3.1 (2024)     | 15T tokens (30% synthetic)  | Evol-Instruct + human filters  |
+| Anthropic Claude-3 (2024) | Undisclosed (est. majority) | Constitutional AI + RLAIF      |
 
 > **The synthetic data era is not coming — it is here.** This pipeline is the engineering infrastructure to participate in it with quality guarantees.
 
 ### 10.3 Why Naive Synthetic Generation Fails Catastrophically
 
-The temptation is straightforward: *call an LLM in a loop, save the outputs, train on them, repeat.* This is exactly what destroys model quality.
+The temptation is straightforward: _call an LLM in a loop, save the outputs, train on them, repeat._ This is exactly what destroys model quality.
 
 The failure modes are:
 
@@ -542,16 +543,18 @@ This pipeline is specifically engineered to break every one of these failure mod
 
 ### 11.1 What Model Collapse Is
 
-**Model collapse** is the catastrophic degradation that occurs when a generative model is repeatedly trained on its own outputs. The term was formalised by Shumailov et al. in "AI models collapse when trained on recursively generated data" (*Nature*, July 2024) — one of the most-cited and most alarming AI safety papers of the past two years.
+**Model collapse** is the catastrophic degradation that occurs when a generative model is repeatedly trained on its own outputs. The term was formalised by Shumailov et al. in "AI models collapse when trained on recursively generated data" (_Nature_, July 2024) — one of the most-cited and most alarming AI safety papers of the past two years.
 
 The process unfolds in two phases:
 
 **Early collapse** (first 2–3 generative iterations):
+
 - The model begins losing the tails of the original data distribution.
 - Rare but valid outputs (uncommon words, minority topics, obscure entities) appear less frequently.
 - Mean outputs look comparable to the original model — the collapse is invisible without forensic diversity analysis.
 
 **Late collapse** (5+ generative iterations):
+
 - The output distribution has collapsed to a tight attractor.
 - The model generates the same handful of outputs regardless of input variation.
 - All rare knowledge is gone. The model cannot recover it without injection of original-distribution data.
@@ -575,24 +578,24 @@ The divergence from the true distribution **monotonically increases** with each 
 
 | System                        | Collapse Signal Observed                              | Source                      |
 | ----------------------------- | ----------------------------------------------------- | --------------------------- |
-| GPT-2 trained on GPT-2 output | Vocabulary TTR dropped 40% within 5 iterations       | Shumailov et al., 2024      |
-| DALL-E image → train loop     | All faces converged to single meso-morph in 9 rounds | Bohacek & Farid, 2023       |
+| GPT-2 trained on GPT-2 output | Vocabulary TTR dropped 40% within 5 iterations        | Shumailov et al., 2024      |
+| DALL-E image → train loop     | All faces converged to single meso-morph in 9 rounds  | Bohacek & Farid, 2023       |
 | Open forum LLM fine-tune      | Model began answering all questions with same phrases | Community report, HF 2024   |
-| Synthetic medical QA loop     | Drug dosage hallucinations compounded 3.2× per round | Synthetic Health Labs, 2024 |
+| Synthetic medical QA loop     | Drug dosage hallucinations compounded 3.2× per round  | Synthetic Health Labs, 2024 |
 
 ### 11.4 Why This Pipeline Guards Against It
 
 Every stage of this pipeline contains an explicit, measurable collapse defence:
 
-| Pipeline Stage    | Collapse Defence Mechanism                                                         |
-| ----------------- | ---------------------------------------------------------------------------------- |
-| **Ingestion**     | Enforces domain diversity — inputs must cover ≥3 distinct topic clusters           |
+| Pipeline Stage    | Collapse Defence Mechanism                                                        |
+| ----------------- | --------------------------------------------------------------------------------- |
+| **Ingestion**     | Enforces domain diversity — inputs must cover ≥3 distinct topic clusters          |
 | **Generation**    | Temperature scheduling prevents mode collapse: T varies across [0.6, 1.1] per run |
-| **Validation**    | Hallucination rate is tracked as a first-class metric with hard cutoff ≤ 5%        |
-| **Deduplication** | Jaccard similarity above 0.7 triggers rejection — keeps distribution wide          |
-| **Filtering**     | Diversity Score (type-token ratio) drop of > 15% from baseline triggers alert      |
-| **Evaluation**    | Before/after KL divergence proxy via vocabulary entropy reported per run            |
-| **Analysis**      | Rare concept coverage tracked: alerts if > 20% of seed topics disappear            |
+| **Validation**    | Hallucination rate is tracked as a first-class metric with hard cutoff ≤ 5%       |
+| **Deduplication** | Jaccard similarity above 0.7 triggers rejection — keeps distribution wide         |
+| **Filtering**     | Diversity Score (type-token ratio) drop of > 15% from baseline triggers alert     |
+| **Evaluation**    | Before/after KL divergence proxy via vocabulary entropy reported per run          |
+| **Analysis**      | Rare concept coverage tracked: alerts if > 20% of seed topics disappear           |
 
 This is the only open-source pipeline that treats **diversity preservation as a hard constraint** rather than a soft metric.
 
@@ -610,7 +613,7 @@ Level 1 — Lexical Diversity
   ├── n-gram entropy (bigrams): H(bigrams) ≥ 8.0 bits
   └── Hapax legomenon ratio ≥ 0.3 (words appearing only once)
 
-Level 2 — Semantic Diversity  
+Level 2 — Semantic Diversity
   ├── Embedding centroid distance between batches ≥ 0.25 (cosine)
   ├── Topic cluster coverage: ≥ N_topics covered per N samples (N/5 rule)
   └── No topic cluster may exceed 40% of total samples
@@ -688,6 +691,7 @@ The research insight from DeepSeek-R1-Zero is particularly striking: a base mode
 This pipeline's `reasoning` task type can be extended for full o1/R1-style trace generation:
 
 **Standard reasoning sample** (current pipeline):
+
 ```json
 {
   "task_type": "reasoning",
@@ -700,6 +704,7 @@ This pipeline's `reasoning` task type can be extended for full o1/R1-style trace
 ```
 
 **Extended reasoning trace** (R1/o1 style — future extension):
+
 ```json
 {
   "task_type": "reasoning_trace",
@@ -742,8 +747,8 @@ Without PRM (Outcome Reward Only):
   Problem: Correct answer via wrong reasoning trains bad reasoning.
 
 With PRM (Step-Level Reward):
-  Input → Step 1 (score: 0.92) → Step 2 (score: 0.88) → 
-          Step 3 (score: 0.23) ← FLAG → Step 3 revised (score: 0.91) → 
+  Input → Step 1 (score: 0.92) → Step 2 (score: 0.88) →
+          Step 3 (score: 0.23) ← FLAG → Step 3 revised (score: 0.91) →
           Final Answer ✓
   Result: Only valid reasoning chains enter training data.
 ```
@@ -775,6 +780,7 @@ CONSTITUTIONAL PRINCIPLES (example):
 ```
 
 Generation flow:
+
 ```
 1. Generate initial response R0               (generator.py)
 2. Critique R0 against each principle         (llm_reviewer.py → CRITIQUE)
@@ -795,12 +801,20 @@ Direct Preference Optimisation (DPO) — the dominant RLHF alternative as of 202
   "prompt": "Explain the mechanism behind mRNA vaccines.",
   "chosen": {
     "response": "mRNA vaccines work by introducing messenger RNA that encodes the antigen...",
-    "constitution_scores": {"helpful": 0.94, "accurate": 0.97, "grounded": 0.91},
+    "constitution_scores": {
+      "helpful": 0.94,
+      "accurate": 0.97,
+      "grounded": 0.91
+    },
     "revision_generation": 2
   },
   "rejected": {
     "response": "mRNA vaccines basically reprogram your DNA to fight viruses...",
-    "constitution_scores": {"helpful": 0.70, "accurate": 0.21, "grounded": 0.18},
+    "constitution_scores": {
+      "helpful": 0.7,
+      "accurate": 0.21,
+      "grounded": 0.18
+    },
     "revision_generation": 0
   },
   "metadata": {
@@ -834,13 +848,13 @@ This is the same principle behind Microsoft's WizardLM **Evol-Instruct** (2023) 
 
 The most valuable training data in the world is locked behind privacy regulations:
 
-| Domain           | Data Volume Available | Barrier                | Synthetic Solution                      |
-| ---------------- | --------------------- | ---------------------- | --------------------------------------- |
-| Medical records  | ~3B patient records   | HIPAA / GDPR Art. 9    | Differentially private synthetic tables |
-| Legal documents  | ~400M case files      | Attorney-client priv.  | Anonymised case summaries + rules       |
-| Financial trades | ~1T ticks/year        | MiFID II / SEC Rule    | Statistical copula synthesis            |
-| Genomic data     | ~50M sequenced genomes| GDPR Art. 89 + consent | k-anonymised variant synthesis          |
-| Personal chats   | ~100B messages/day    | GDPR Art. 6            | Topic-preserving paraphrase generation  |
+| Domain           | Data Volume Available  | Barrier                | Synthetic Solution                      |
+| ---------------- | ---------------------- | ---------------------- | --------------------------------------- |
+| Medical records  | ~3B patient records    | HIPAA / GDPR Art. 9    | Differentially private synthetic tables |
+| Legal documents  | ~400M case files       | Attorney-client priv.  | Anonymised case summaries + rules       |
+| Financial trades | ~1T ticks/year         | MiFID II / SEC Rule    | Statistical copula synthesis            |
+| Genomic data     | ~50M sequenced genomes | GDPR Art. 89 + consent | k-anonymised variant synthesis          |
+| Personal chats   | ~100B messages/day     | GDPR Art. 6            | Topic-preserving paraphrase generation  |
 
 The global synthetic medical data market alone is projected to reach **$4.5 billion by 2027** (MarketsandMarkets, 2024). This pipeline's architecture is directly applicable.
 
@@ -865,7 +879,7 @@ Tier 3 — k-Anonymity:
   on quasi-identifier attributes
 
 Tier 4 — Differential Privacy (gold standard):
-  ε-DP: adding/removing any individual record changes output 
+  ε-DP: adding/removing any individual record changes output
   distribution by at most e^ε
   Typical ε ∈ [1, 8] for medical use cases
 ```
@@ -876,13 +890,13 @@ This pipeline's `ingestion` → `generation` flow can be extended to enforce Tie
 
 Article 89 of GDPR provides a research exemption for data processing if "appropriate safeguards" are in place. For synthetic data pipelines, the safeguards map to pipeline stages:
 
-| GDPR Art. 89 Requirement                   | Pipeline Safeguard                                  |
-| ------------------------------------------ | --------------------------------------------------- |
-| Purpose limitation (research use only)     | Metadata tagging with `purpose: research` flag      |
-| Data minimisation                          | Ingestion chunking removes identifying context      |
-| Storage limitation                         | `filtered_dataset.jsonl` is the only retained file  |
-| Integrity & confidentiality                | No raw PII in JSONL outputs (NER preprocessing)     |
-| Accountability (audit trail)               | `error_analysis.json` + `metrics_report.json` logs  |
+| GDPR Art. 89 Requirement               | Pipeline Safeguard                                 |
+| -------------------------------------- | -------------------------------------------------- |
+| Purpose limitation (research use only) | Metadata tagging with `purpose: research` flag     |
+| Data minimisation                      | Ingestion chunking removes identifying context     |
+| Storage limitation                     | `filtered_dataset.jsonl` is the only retained file |
+| Integrity & confidentiality            | No raw PII in JSONL outputs (NER preprocessing)    |
+| Accountability (audit trail)           | `error_analysis.json` + `metrics_report.json` logs |
 
 ### 15.4 Synthetic Medical QA Example
 
@@ -890,15 +904,15 @@ This pipeline's `qa` task type can generate HIPAA-safe medical training datasets
 
 ```
 Input:  Anonymised case summary (Tier 2 pseudonymised)
-        "Patient [ID-44] presented with Stage III [CANCER_TYPE] 
+        "Patient [ID-44] presented with Stage III [CANCER_TYPE]
          with [GENE_VARIANT] mutation. Treatment: [DRUG_A] + [DRUG_B]."
 
 Generated QA:
-  Question: "What is the first-line treatment for Stage III [CANCER_TYPE] 
+  Question: "What is the first-line treatment for Stage III [CANCER_TYPE]
              with [GENE_VARIANT] mutation?"
-  Answer:   "Based on current NCCN guidelines, combination [DRUG_CLASS_A] 
+  Answer:   "Based on current NCCN guidelines, combination [DRUG_CLASS_A]
              plus [DRUG_CLASS_B] is recommended..."
-  Evidence: "The case demonstrates [GENE_VARIANT]-driven resistance 
+  Evidence: "The case demonstrates [GENE_VARIANT]-driven resistance
              mechanisms that necessitate..."
 ```
 
@@ -931,7 +945,7 @@ Anthropic's Constitutional AI pipeline (Bai et al., 2022; Claude-2.1, 2023; Clau
 
 ```
 Stage 1 — Supervised Learning from AI Feedback (SL-CAF):
-  Generate harmful/unhelpful response → Critique using constitution → 
+  Generate harmful/unhelpful response → Critique using constitution →
   Revise → Train on (original, revised) pairs
 
 Stage 2 — RL from AI Feedback (RLAIF):
@@ -997,6 +1011,7 @@ For specialised domains, Google's AlphaCode 2 approach demonstrates the power of
 The key innovation: **execution is the oracle.** You never need a human to judge code quality because you can run the code. This is applicable to any domain where ground truth can be algorithmically computed.
 
 **Comparable pipeline extensions for this project:**
+
 - Math: Use SymPy/WolframAlpha to verify numeric answers
 - Logic: Use SAT/SMT solvers to verify formal proofs
 - Code: Execute generated code against test suites
@@ -1010,47 +1025,47 @@ This pipeline is built on a foundation of peer-reviewed research and technical r
 
 ### Foundational Theory
 
-| Paper                                              | Authors                     | Year | Key Contribution                              |
-| -------------------------------------------------- | --------------------------- | ---- | --------------------------------------------- |
-| Self-Instruct: Aligning LMs with Self Instructions | Wang et al.                 | 2022 | First systematic synthetic instruction method |
-| Constitutional AI: Harmlessness from AI Feedback  | Bai et al. (Anthropic)      | 2022 | RLAIF + constitutional critique-revision loop |
-| LIMA: Less Is More for Alignment                   | Zhou et al.                 | 2023 | 1,000 curated examples ≈ full RLHF at 65B    |
-| Textbooks Are All You Need                         | Gunasekar et al. (Microsoft)| 2023 | Quality > quantity; Phi-1 result              |
+| Paper                                              | Authors                      | Year | Key Contribution                              |
+| -------------------------------------------------- | ---------------------------- | ---- | --------------------------------------------- |
+| Self-Instruct: Aligning LMs with Self Instructions | Wang et al.                  | 2022 | First systematic synthetic instruction method |
+| Constitutional AI: Harmlessness from AI Feedback   | Bai et al. (Anthropic)       | 2022 | RLAIF + constitutional critique-revision loop |
+| LIMA: Less Is More for Alignment                   | Zhou et al.                  | 2023 | 1,000 curated examples ≈ full RLHF at 65B     |
+| Textbooks Are All You Need                         | Gunasekar et al. (Microsoft) | 2023 | Quality > quantity; Phi-1 result              |
 
 ### Model Collapse Research
 
-| Paper                                                           | Authors                | Year | Key Contribution                            |
-| --------------------------------------------------------------- | ---------------------- | ---- | ------------------------------------------- |
-| AI models collapse when trained on recursively generated data   | Shumailov et al.       | 2024 | First formal proof + empirical demonstration|
-| Towards Understanding the Impact of Synthetic Data on AI Systems| Guo et al.             | 2024 | Mitigation strategies for distribution bias |
-| Model Collapse Demystified                                       | Dohmatob et al.        | 2024 | Theoretical bounds on collapse rate         |
-| Autophagy in Language Models                                     | Hataya et al.          | 2023 | Recursive training toxicity characterisation|
+| Paper                                                            | Authors          | Year | Key Contribution                             |
+| ---------------------------------------------------------------- | ---------------- | ---- | -------------------------------------------- |
+| AI models collapse when trained on recursively generated data    | Shumailov et al. | 2024 | First formal proof + empirical demonstration |
+| Towards Understanding the Impact of Synthetic Data on AI Systems | Guo et al.       | 2024 | Mitigation strategies for distribution bias  |
+| Model Collapse Demystified                                       | Dohmatob et al.  | 2024 | Theoretical bounds on collapse rate          |
+| Autophagy in Language Models                                     | Hataya et al.    | 2023 | Recursive training toxicity characterisation |
 
 ### Reasoning Trace Synthesis
 
-| Paper                                     | Authors             | Year | Key Contribution                               |
-| ----------------------------------------- | ------------------- | ---- | ---------------------------------------------- |
-| Chain-of-Thought Prompting Elicits Reasoning | Wei et al.        | 2022 | Foundational reasoning trace work              |
-| Let's Verify Step by Step (PRM800K)        | Lightman et al. (OAI)| 2023| Process reward models for math reasoning       |
-| DeepSeek-R1: Incentivizing Reasoning       | DeepSeek Team       | 2025 | GRPO + synthetic self-play for reasoning       |
-| OpenMathInstruct-2                         | Toshniwal et al. (NVIDIA)| 2024 | 14M synthetic math reasoning traces        |
+| Paper                                        | Authors                   | Year | Key Contribution                         |
+| -------------------------------------------- | ------------------------- | ---- | ---------------------------------------- |
+| Chain-of-Thought Prompting Elicits Reasoning | Wei et al.                | 2022 | Foundational reasoning trace work        |
+| Let's Verify Step by Step (PRM800K)          | Lightman et al. (OAI)     | 2023 | Process reward models for math reasoning |
+| DeepSeek-R1: Incentivizing Reasoning         | DeepSeek Team             | 2025 | GRPO + synthetic self-play for reasoning |
+| OpenMathInstruct-2                           | Toshniwal et al. (NVIDIA) | 2024 | 14M synthetic math reasoning traces      |
 
 ### Privacy-Preserving Synthesis
 
-| Paper                                    | Authors              | Year | Key Contribution                              |
-| ---------------------------------------- | -------------------- | ---- | --------------------------------------------- |
-| Differentially Private Synthetic Data    | Jordon et al.        | 2022 | DP-GAN for tabular medical data               |
-| Privacy-Preserving Synthetic Medical Text| Yale & Stanford      | 2024 | Clinical NLP training without patient data    |
-| AnonLLM: Anonymize Before You Generate  | Staab et al.         | 2024 | NER-based PII scrubbing before LLM context    |
+| Paper                                     | Authors         | Year | Key Contribution                           |
+| ----------------------------------------- | --------------- | ---- | ------------------------------------------ |
+| Differentially Private Synthetic Data     | Jordon et al.   | 2022 | DP-GAN for tabular medical data            |
+| Privacy-Preserving Synthetic Medical Text | Yale & Stanford | 2024 | Clinical NLP training without patient data |
+| AnonLLM: Anonymize Before You Generate    | Staab et al.    | 2024 | NER-based PII scrubbing before LLM context |
 
 ### Instruction Evolution & Scale
 
-| Paper                                      | Authors           | Year | Key Contribution                          |
-| ------------------------------------------ | ----------------- | ---- | ----------------------------------------- |
-| WizardLM: Evol-Instruct                    | Xu et al.         | 2023 | Systematic prompt complexity evolution    |
-| AgentInstruct: Toward Generalist Agents    | Mitra et al. (MS) | 2024 | Agentic pipeline for multi-step synth data|
-| Phi-3 Technical Report                     | Abdin et al. (MS) | 2024 | 3.3T token synthetic curriculum at scale  |
-| AlphaCode 2 Technical Report               | Google DeepMind   | 2023 | Execution-verified code synthesis at 1M/problem |
+| Paper                                   | Authors           | Year | Key Contribution                                |
+| --------------------------------------- | ----------------- | ---- | ----------------------------------------------- |
+| WizardLM: Evol-Instruct                 | Xu et al.         | 2023 | Systematic prompt complexity evolution          |
+| AgentInstruct: Toward Generalist Agents | Mitra et al. (MS) | 2024 | Agentic pipeline for multi-step synth data      |
+| Phi-3 Technical Report                  | Abdin et al. (MS) | 2024 | 3.3T token synthetic curriculum at scale        |
+| AlphaCode 2 Technical Report            | Google DeepMind   | 2023 | Execution-verified code synthesis at 1M/problem |
 
 ### How to Cite This Work
 

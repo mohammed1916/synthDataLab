@@ -1,0 +1,46 @@
+# Git
+.git/
+.gitignore
+
+# CI
+.github/
+
+# Docs
+*.md
+*.txt
+!dataset_builder/requirements.txt
+
+# Dev / test files
+dataset_builder/tests/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Data outputs (mount as a volume instead)
+dataset_builder/data/*.jsonl
+dataset_builder/data/*.json
+dataset_builder/data/logs/
+dataset_builder/data/checkpoint.json
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Env files (do NOT bake secrets into the image)
+.env
+.env.*
+!.env.example
+
+# Build artefacts
+dist/
+build/
+*.egg-info/

@@ -39,6 +39,7 @@ class GenerationConfig:
         default_factory=lambda: ["qa", "extraction", "reasoning"]
     )
     batch_size: int = 10                # LLM call batch size
+    max_workers: int = 1                # parallel LLM threads (1 = sequential)
 
 
 @dataclass

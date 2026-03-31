@@ -84,6 +84,15 @@ class Ingestor:
         if not path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
+        # Guard against unreasonably large files (>50 MB)
+        _MAX_BYTES = 50 * 1024 * 1024
+        size = path.stat().st_size
+        if size > _MAX_BYTES:
+            raise ValueError(
+                f"File too large ({size / 1_048_576:.1f} MB > 50 MB limit): {file_path}. "
+                "Split into smaller chunks before ingestion."
+            )
+
         if path.suffix.lower() in IMAGE_EXTENSIONS:
             raw_records = ingest_image(file_path)
         else:
@@ -114,6 +123,12 @@ class Ingestor:
             }
         """
         path = Path(json_path)
+        _MAX_BYTES = 50 * 1024 * 1024
+        size = path.stat().st_size
+        if size > _MAX_BYTES:
+            raise ValueError(
+                f"JSON file too large ({size / 1_048_576:.1f} MB > 50 MB limit): {json_path}"
+            )
         articles: List[dict] = json.loads(
             path.read_text(encoding="utf-8", errors="replace")
         )

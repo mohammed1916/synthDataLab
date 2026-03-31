@@ -1,4 +1,4 @@
-"""n
+"""
 main.py — CLI entry point for the Dataset Builder pipeline.
 
 Commands
@@ -22,9 +22,12 @@ Usage examples
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
+import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -57,23 +60,83 @@ logging.basicConfig(
 logger = logging.getLogger("dataset_builder")
 
 
+def _setup_file_logging(log_dir: Path, session_id: str) -> None:
+    """Add a rotating file handler so every run is persisted to disk."""
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / f"pipeline_{session_id}.log"
+    fh = logging.FileHandler(log_path, encoding="utf-8")
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(
+        logging.Formatter(
+            "%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%S",
+        )
+    )
+    logging.getLogger().addHandler(fh)
+    logger.info("File logging active → %s", log_path)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Checkpoint helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _checkpoint_path(cfg: Config) -> Path:
+    return cfg.storage.data_dir / "logs" / "checkpoint.json"
+
+
+def _load_checkpoint(cfg: Config) -> Dict[str, Any]:
+    p = _checkpoint_path(cfg)
+    if p.exists():
+        return json.loads(p.read_text(encoding="utf-8"))
+    return {"completed": [], "session_id": None}
+
+
+def _save_checkpoint(cfg: Config, checkpoint: Dict[str, Any]) -> None:
+    p = _checkpoint_path(cfg)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(checkpoint, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _clear_checkpoint(cfg: Config) -> None:
+    p = _checkpoint_path(cfg)
+    with contextlib.suppress(FileNotFoundError):
+        p.unlink()
+
+
+import datetime
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _load_config(mock: bool = False) -> Config:
+    from datetime import timezone
     cfg = Config()
     if mock:
         cfg.llm.provider = "mock"
     cfg.ensure_dirs()
+    session_id = datetime.datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    _setup_file_logging(cfg.storage.data_dir / "logs", session_id)
     return cfg
 
 
 def _save_jsonl(records: List[Dict[str, Any]], path: Path) -> None:
+    """Atomically write records to a JSONL file (write-tmp → fsync → rename)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        for rec in records:
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    fd, tmp_path = tempfile.mkstemp(
+        dir=path.parent, prefix=path.name + ".", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            for rec in records:
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, path)   # atomic on POSIX; near-atomic on Windows
+    except Exception:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_path)
+        raise
     _echo(f"  Saved {len(records)} records → {path}")
 
 
@@ -254,29 +317,85 @@ def cli():
     show_default=True,
     help="Use mock LLM instead of Ollama (no Ollama server needed).",
 )
-def run_all(input_path: Optional[str], mock: bool):
+@click.option(
+    "--resume/--no-resume",
+    default=False,
+    show_default=True,
+    help="Resume a previously interrupted run from the last completed step.",
+)
+@click.option(
+    "--workers",
+    default=1,
+    show_default=True,
+    type=click.IntRange(min=1, max=16),
+    help="Number of parallel LLM generation threads (default 1 = sequential).",
+)
+def run_all(input_path: Optional[str], mock: bool, resume: bool, workers: int):
     """Run the complete pipeline: ingest → generate → validate → filter → evaluate → analyze."""
     cfg = _load_config(mock=mock)
+    cfg.generation.max_workers = workers
     _echo(
         f"\n[bold green]Dataset Builder[/bold green] "
-        f"({'Mock LLM' if cfg.use_mock_llm else cfg.llm.model})\n"
+        f"({'Mock LLM' if cfg.use_mock_llm else cfg.llm.model})"
+        f" | workers={workers}\n"
     )
+
+    ckpt = _load_checkpoint(cfg) if resume else {"completed": [], "session_id": None}
+    done = set(ckpt.get("completed", []))
+    if resume and done:
+        _echo(f"[yellow]Resuming — already completed: {sorted(done)}[/yellow]")
+
+    def _mark(step: str) -> None:
+        done.add(step)
+        ckpt["completed"] = sorted(done)
+        _save_checkpoint(cfg, ckpt)
 
     # 1. INGEST
     _header("1 / 6  INGESTION")
-    ingestion_results = step_ingest(cfg, input_path)
+    if "ingest" in done:
+        ingestion_results = [
+            IngestionResult(**r) for r in _load_jsonl(cfg.storage.data_dir / "ingested.jsonl")
+        ]
+        _echo(f"  [dim]Skipped (resumed) — {len(ingestion_results)} chunk(s)[/dim]")
+    else:
+        ingestion_results = step_ingest(cfg, input_path)
+        _save_jsonl([r.to_dict() for r in ingestion_results], cfg.storage.data_dir / "ingested.jsonl")
+        _mark("ingest")
 
     # 2. GENERATE
     _header("2 / 6  GENERATION")
-    raw_samples = step_generate(cfg, ingestion_results)
+    if "generate" in done:
+        raw_samples = [DatasetSample.from_dict(r) for r in _load_jsonl(cfg.storage.raw_path())]
+        _echo(f"  [dim]Skipped (resumed) — {len(raw_samples)} sample(s)[/dim]")
+    else:
+        raw_samples = step_generate(cfg, ingestion_results)
+        _mark("generate")
 
     # 3. VALIDATE
     _header("3 / 6  VALIDATION  (Rule + HITL Simulation)")
-    annotated = step_validate(cfg, raw_samples)
+    if "validate" in done:
+        annotated_dicts = _load_jsonl(cfg.storage.annotated_path())
+        annotated = []
+        for r in annotated_dicts:
+            ann_data = r.pop("annotation", {})
+            ann = AnnotatedSample.from_sample_dict(r)
+            ann.label = AnnotationLabel(ann_data.get("label", "ACCEPT"))
+            annotated.append(ann)
+        _echo(f"  [dim]Skipped (resumed) — {len(annotated)} annotated[/dim]")
+    else:
+        annotated = step_validate(cfg, raw_samples)
+        _mark("validate")
 
     # 4. FILTER
     _header("4 / 6  FILTERING")
-    filtered, filter_report = step_filter(cfg, annotated)
+    if "filter" in done:
+        filtered_dicts = _load_jsonl(cfg.storage.filtered_path())
+        filtered = [AnnotatedSample.from_sample_dict(r) for r in filtered_dicts]
+        filter_report: dict = {}
+        _echo(f"  [dim]Skipped (resumed) — {len(filtered)} samples retained[/dim]")
+    else:
+        filtered, filter_report = step_filter(cfg, annotated)
+        _mark("filter")
 
     # 5. EVALUATE
     _header("5 / 6  EVALUATION  (Metrics)")
@@ -292,6 +411,7 @@ def run_all(input_path: Optional[str], mock: bool):
     _echo(f"  Filtered dataset → [cyan]{cfg.storage.filtered_path()}[/cyan]")
     _echo(f"  Metrics report   → [cyan]{cfg.storage.metrics_path()}[/cyan]")
     _echo(f"  Error analysis   → [cyan]{cfg.storage.error_path()}[/cyan]\n")
+    _clear_checkpoint(cfg)
 
 
 @cli.command("ingest")

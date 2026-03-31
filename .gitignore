@@ -69,3 +69,10 @@ hypothesis/
 # OS files
 .DS_Store
 Thumbs.db
+
+# ── SynthDataLab project data outputs ────────────────────────────────────────
+dataset_builder/data/*.jsonl
+dataset_builder/data/*.json
+!dataset_builder/data/sample_inputs/
+dataset_builder/data/logs/
+dataset_builder/data/checkpoint.json
