@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 
 test('homepage has title and create-run form', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'synthDataLab Production UI' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Create run' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'synthDataLab Production Dashboard' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Create Run' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start run' })).toBeVisible();
 });
 
