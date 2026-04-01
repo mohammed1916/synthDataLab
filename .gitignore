@@ -76,3 +76,5 @@ dataset_builder/data/*.json
 !dataset_builder/data/sample_inputs/
 dataset_builder/data/logs/
 dataset_builder/data/checkpoint.json
+
+node_modules/

@@ -91,17 +91,17 @@ This system operationalises those practices in a modular, runnable Python pipeli
 
 ### Component Responsibilities
 
-| Module        | Responsibility                                                                 |
-| ------------- | ------------------------------------------------------------------------------ |
-| `ingestion/`  | Normalises text, images, JSON articles into `{source_type, content, metadata}` |
-| `generation/` | Calls LLM with structured prompts; produces `DatasetSample` objects            |
-| `prompts/`    | System prompts, few-shot examples, task instructions                           |
-| `schema/`     | JSON Schema + Pydantic-like dataclasses; `validate_sample()`                   |
-| `validation/` | Rule-based validator, LLM reviewer, annotation labels (HITL simulation)        |
-| `filtering/`  | 5-stage quality pipeline with per-stage statistics                             |
-| `evaluation/` | 6 quantitative metrics; before/after comparison table                          |
-| `analysis/`   | Error categorisation, frequency statistics, auto-correction examples           |
-| `main.py`     | CLI with 8 commands; `run-all` runs the full pipeline                          |
+| Module        | Responsibility                                                                                                   |
+| ------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `ingestion/`  | Normalises text, images, JSON articles into `{source_type, content, metadata}`                                   |
+| `generation/` | Calls LLM with structured prompts; `CriticAgent` quality gate; multi-agent orchestrator; Evol-Instruct evolution |
+| `prompts/`    | System prompts, few-shot examples, task instructions                                                             |
+| `schema/`     | JSON Schema + Pydantic-like dataclasses; `validate_sample()`                                                     |
+| `validation/` | Rule-based validator, LLM reviewer wired to real Ollama, annotation labels (HITL simulation)                     |
+| `filtering/`  | 5-stage quality pipeline; cross-run SHA-256 fingerprint deduplication                                            |
+| `evaluation/` | 10+ quantitative metrics; live dashboard; Argilla + LabelStudio export                                           |
+| `analysis/`   | Error categorisation, frequency statistics, auto-correction examples                                             |
+| `main.py`     | CLI with 13 commands; `run-all` runs the full pipeline with versioned run dirs                                   |
 
 ---
 
@@ -271,11 +271,23 @@ python main.py run-all --input data/sample_inputs/sample_text.txt
 python main.py run-all --input my_articles.json   # must be [{title, content, source}]
 ```
 
-### Run with a different Ollama model
+### Run with the multi-agent orchestrator
 
 ```bash
-ollama pull llama3.2
-python main.py run-all   # then edit config.py: model = "llama3.2"
+python main.py run-all --mock --agent
+python main.py run-all --mock --agent --steering review-low --threshold 0.65
+```
+
+### Cross-run deduplication
+
+After first run, all sample fingerprints are saved to `data/fingerprints.json`.  
+A second run on the same input will detect duplicates and exit cleanly:
+
+```bash
+python main.py run-all --mock            # first run: 30 new samples
+python main.py run-all --mock            # second run: "Nothing new to process"
+python main.py run-all --mock --force    # bypass dedup, reprocess all
+python main.py run-all --mock --reset-fingerprints  # wipe history, start fresh
 ```
 
 ### Individual commands
@@ -287,6 +299,10 @@ python main.py validate
 python main.py filter
 python main.py evaluate
 python main.py analyze
+python main.py evolve  data/sample_inputs/sample_text.txt --rounds 3
+python main.py export  --format argilla
+python main.py list-runs
+python main.py health-check --mock
 python main.py guidelines          # print annotation guidelines
 ```
 
@@ -393,15 +409,22 @@ Running the pipeline on the bundled sample data typically surfaces the following
 
 ## 8. Output Files
 
-All outputs are written to `data/`:
+All outputs are written to `data/`. Every `run-all` invocation also writes a **versioned snapshot** to `data/runs/<run_id>/` and updates a `data/latest` symlink.
 
-| File                           | Description                                           |
-| ------------------------------ | ----------------------------------------------------- |
-| `data/raw_dataset.jsonl`       | All generated samples before validation               |
-| `data/annotated_dataset.jsonl` | Samples with ACCEPT / REJECT / FIX_REQUIRED labels    |
-| `data/filtered_dataset.jsonl`  | High-quality samples only (ACCEPT, post-filtering)    |
-| `data/metrics_report.json`     | Before/after quality metrics comparison               |
-| `data/error_analysis.json`     | Error frequencies, breakdown, and correction examples |
+| File / Path                              | Description                                           |
+| ---------------------------------------- | ----------------------------------------------------- |
+| `data/raw_dataset.jsonl`                 | All generated samples before validation               |
+| `data/annotated_dataset.jsonl`           | Samples with ACCEPT / REJECT / FIX_REQUIRED labels    |
+| `data/filtered_dataset.jsonl`            | High-quality samples only (ACCEPT, post-filtering)    |
+| `data/metrics_report.json`               | Before/after quality metrics comparison               |
+| `data/error_analysis.json`               | Error frequencies, breakdown, and correction examples |
+| `data/fingerprints.json`                 | SHA-256 fingerprint store for cross-run dedup         |
+| `data/ingested.jsonl`                    | Intermediate ingestion chunks (used by `--resume`)    |
+| `data/runs/<run_id>/manifest.json`       | Run metadata: run_id, git_sha, config_hash, model     |
+| `data/runs/<run_id>/*.jsonl`             | Versioned copies of all pipeline artifacts            |
+| `data/runs/<run_id>/critic_scores.jsonl` | Per-sample critic scores (only with `--agent`)        |
+| `data/latest/`                           | Symlink → most recent `runs/<run_id>/`                |
+| `data/logs/pipeline_<ts>.log`            | Full run log with timestamps                          |
 
 ---
 
@@ -414,6 +437,13 @@ All outputs are written to `data/`:
 - [x] **Reasoning trace task type (R1-style)** — add `reasoning_trace` to task types, producing full `<think>…</think>` scratchpad + verified answer pairs; verifiable tasks (math, code, logic) get execution-based quality gating.
 - [x] **Preference pair generation (DPO-ready)** — constitutional critique-revision loop outputs `(prompt, chosen, rejected)` triples directly consumable by TRL, Axolotl, or LLaMAFactory DPO trainers.
 - [x] **Prompt evolution (Evol-Instruct)** — automatically evolve seed prompts along four dimensions: add constraints, deepen, concretise, increase reasoning depth; prevents prompt homogeneity across batches.
+- [x] **Cross-run fingerprint deduplication** — SHA-256 fingerprint store persists across pipeline runs; second run on identical input cleanly exits instead of silently overwriting outputs with 0 records.
+- [x] **Versioned run artifacts** — every `run-all` saves a full snapshot to `data/runs/<run_id>/` with manifest (run_id, git_sha, config_hash, model) and a `data/latest` convenience symlink.
+- [x] **`health-check` command** — pre-flight check for Ollama connectivity, disk space (≥500 MB), config validity, and required Python packages.
+- [x] **Config validation with disk space guard** — `Config.validate()` raises on `< 500 MB` free, misconfigured thresholds, or non-writable data dir; called automatically at pipeline start.
+- [x] **Argilla + LabelStudio export** — `export` command converts `filtered_dataset.jsonl` to annotation platform formats for human review or active learning.
+- [x] **Real Ollama LLM reviewer** — `LLMReviewer` now wires to the live OllamaClient for genuine LLM-based second-pass annotation (falls back to heuristics when mock).
+- [x] **Per-step timing display** — each of the 6 pipeline steps now prints elapsed time (`↳ 1.6s`) so bottlenecks are immediately visible.
 
 ### Medium-term (Architectural)
 
@@ -440,8 +470,8 @@ All outputs are written to `data/`:
 
 ```
 dataset_builder/
-├── config.py                   # Central configuration
-├── main.py                     # CLI entry point (9 commands)
+├── config.py                   # Central config + versioning (run_id, git_sha, validate())
+├── main.py                     # CLI entry point (13 commands)
 ├── requirements.txt
 │
 ├── ingestion/
@@ -451,7 +481,10 @@ dataset_builder/
 │
 ├── generation/
 │   ├── generator.py            # Orchestrates LLM calls → DatasetSample
-│   └── llm_client.py           # OllamaClient + MockLLMClient
+│   ├── llm_client.py           # OllamaClient (retries + health_check) + MockLLMClient
+│   ├── critic_agent.py         # 4-axis heuristic quality scorer
+│   ├── orchestrator.py         # MultiAgentOrchestrator: Generator + Critic + Steering
+│   └── evolver.py              # Evol-Instruct prompt evolution (4 operations)
 │
 ├── prompts/
 │   ├── templates.py            # System prompts + few-shot injection
@@ -463,28 +496,48 @@ dataset_builder/
 ├── validation/
 │   ├── annotation.py           # AnnotationLabel enum + AnnotatedSample
 │   ├── rule_validator.py       # Deterministic rule checks (HITL layer 1)
-│   └── llm_reviewer.py         # LLM critique reviewer (HITL layer 2)
+│   └── llm_reviewer.py         # LLM critique reviewer wired to OllamaClient (HITL layer 2)
 │
 ├── filtering/
 │   ├── pipeline.py             # 5-stage quality filtering pipeline
-│   └── deduplicator.py         # Jaccard-based deduplication
+│   ├── deduplicator.py         # Jaccard-based within-run deduplication
+│   └── fingerprint_store.py    # SHA-256 cross-run deduplication (persistent)
 │
 ├── evaluation/
-│   ├── metrics.py              # 6 quality metrics + computation logic
-│   └── reporter.py             # Console table + JSON report writer
+│   ├── metrics.py              # 10+ quality metrics + computation logic
+│   ├── live_metrics.py         # LiveMetricsTracker + Rich live dashboard
+│   ├── reporter.py             # Console table + JSON report writer
+│   └── exporter.py             # Argilla + LabelStudio annotation export
 │
 ├── analysis/
 │   └── error_analyzer.py       # Error categorisation + auto-correction
+│
+├── tests/                      # 138 pytest tests
+│   ├── test_schema.py
+│   ├── test_metrics.py
+│   ├── test_validator.py
+│   ├── test_evolver.py
+│   ├── test_integration.py
+│   ├── test_critic_agent.py
+│   ├── test_orchestrator.py
+│   ├── test_live_metrics.py
+│   └── test_fingerprint_dedup.py
 │
 └── data/
     ├── sample_inputs/
     │   ├── sample_articles.json  # 10 diverse articles across domains
     │   └── sample_text.txt       # Plain text demo input
+    ├── fingerprints.json         # Cross-run dedup store (persistent)
     ├── raw_dataset.jsonl         # (generated at runtime)
     ├── annotated_dataset.jsonl   # (generated at runtime)
     ├── filtered_dataset.jsonl    # (generated at runtime)
     ├── metrics_report.json       # (generated at runtime)
-    └── error_analysis.json       # (generated at runtime)
+    ├── error_analysis.json       # (generated at runtime)
+    ├── runs/                     # Versioned run snapshots
+    │   └── <run_id>/
+    │       ├── manifest.json     # run_id, git_sha, config_hash, model
+    │       └── *.jsonl/*.json    # copied artifacts for that run
+    └── latest -> runs/<run_id>/  # symlink to most recent run
 ```
 
 ---

@@ -15,10 +15,57 @@ Design principles
 from __future__ import annotations
 
 import json
+import re
 from enum import Enum
 from typing import Any, Dict, List
 
 from .few_shot_examples import FEW_SHOT_EXAMPLES
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Input sanitizer — guards against prompt injection in user-supplied text
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Maximum characters of user text included in any single prompt
+_MAX_INPUT_CHARS = 4000
+
+# Patterns that could hijack a system prompt or inject new instructions
+_INJECTION_PATTERNS = re.compile(
+    r"(<\|(?:im_start|im_end|system|user|assistant|endoftext)\|>"
+    r"|</?s>|</?(sys|inst|s)>"           # Llama-2/Mistral special tokens
+    r"|\[/?(?:INST|SYS)\]"              # Llama-2 bracket markers
+    r"|###\s*(?:System|User|Human|Assistant|Instruction)"  # GPT-style role headers
+    r"|(?:\r?\n){4,}"                   # 4+ consecutive newlines (separator trick)
+    r"|\x00)",                           # null bytes
+    re.IGNORECASE,
+)
+
+
+def sanitize_input(text: str) -> str:
+    """
+    Sanitize user-supplied text before it is embedded in an LLM prompt.
+
+    - Strips null bytes and special model tokens that could redirect the prompt.
+    - Collapses excessive blank lines used as separator tricks.
+    - Truncates to ``_MAX_INPUT_CHARS`` so the prompt stays within limits.
+
+    Args:
+        text: Raw user/file text.
+
+    Returns:
+        Cleaned text safe to embed inside a prompt.
+    """
+    if not isinstance(text, str):
+        text = str(text)
+    # Remove injection patterns
+    cleaned = _INJECTION_PATTERNS.sub(" ", text)
+    # Collapse runs of 3+ newlines down to two (one blank line)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    # Strip leading/trailing whitespace
+    cleaned = cleaned.strip()
+    # Truncate with a clear marker so the model knows input was cut
+    if len(cleaned) > _MAX_INPUT_CHARS:
+        cleaned = cleaned[:_MAX_INPUT_CHARS] + "\n[... truncated ...]"
+    return cleaned
 
 
 class TaskType(str, Enum):
@@ -174,11 +221,12 @@ class PromptTemplates:
 
         system_prompt = _SYSTEM_PROMPTS[t]
         few_shot_block = _build_few_shot_block(t)
+        safe_input = sanitize_input(input_text)
 
         user_prompt = (
             f"{few_shot_block}"
             f"Now process the following passage and produce ONE {t.upper()} sample.\n\n"
-            f"PASSAGE:\n{input_text}\n\n"
+            f"PASSAGE:\n{safe_input}\n\n"
             "OUTPUT (valid JSON only):"
         )
 

@@ -46,6 +46,49 @@ docker run --rm \
   synthdatalab:latest run-all
 ```
 
+### Web API + React UI (new)
+
+This repository now includes a FastAPI service and a React + Vite frontend:
+
+- Backend: `dataset_builder/api/app.py` (FastAPI endpoints)
+- Frontend: `ui/` (React/Vite SPA)
+
+Run locally:
+
+```bash
+# Start backend API
+uvicorn dataset_builder.api.app:app --host 0.0.0.0 --port 8000 --reload
+
+# Start frontend (in another shell)
+cd ui
+npm install
+npm run dev
+```
+
+Then open: http://localhost:5173
+
+The UI supports:
+
+- creating pipeline runs (`/api/runs`)
+- listing runs (`/api/runs`)
+- fetching run details (`/api/runs/{run_id}`)
+- viewing run logs (`/api/runs/{run_id}/logs`)
+
+Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+UI lint and e2e checks:
+
+```bash
+cd ui
+npm install
+npm run lint
+npm run test:e2e
+```
+
 On Linux (where `host.docker.internal` doesn't exist by default):
 
 ```bash

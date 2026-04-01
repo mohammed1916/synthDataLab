@@ -1,0 +1,116 @@
+{
+  "summary": {
+    "raw_samples": 3,
+    "filtered_samples": 1,
+    "samples_removed": 2
+  },
+  "metrics": {
+    "schema_validity_rate": {
+      "raw": 0.6666666666666666,
+      "filtered": 1.0,
+      "delta": "++33.33%"
+    },
+    "task_consistency_score": {
+      "raw": 0.6666666666666666,
+      "filtered": 1.0,
+      "delta": "++33.33%"
+    },
+    "completeness_score": {
+      "raw": 0.8888888888888888,
+      "filtered": 1.0,
+      "delta": "++11.11%"
+    },
+    "hallucination_rate": {
+      "raw": 0.0,
+      "filtered": 0.0,
+      "delta": "++0.00%"
+    },
+    "diversity_score": {
+      "raw": 0.4888888888888889,
+      "filtered": 0.5833333333333334,
+      "delta": "++9.44%"
+    },
+    "mean_confidence": {
+      "raw": 0.7333333333333334,
+      "filtered": 1.0,
+      "delta": "++26.67%"
+    },
+    "vocabulary_entropy_bits": {
+      "raw": 4.93026872431494,
+      "filtered": 3.6258145836939115,
+      "delta": "-130.45%"
+    },
+    "bigram_entropy_bits": {
+      "raw": 5.624625498810739,
+      "filtered": 3.7294461949052566,
+      "delta": "-189.52%"
+    },
+    "collapse_risk_score": {
+      "raw": 0.6148,
+      "filtered": 0.4889,
+      "alert": "OK"
+    }
+  },
+  "task_distribution": {
+    "raw": {
+      "qa": 1,
+      "extraction": 1,
+      "reasoning": 1
+    },
+    "filtered": {
+      "qa": 1
+    }
+  },
+  "filtering_pipeline": {
+    "total_input": 3,
+    "total_output": 1,
+    "total_removed": 2,
+    "overall_retention_rate": 0.3333,
+    "stages": [
+      {
+        "stage": "schema_violation_removal",
+        "input": 3,
+        "output": 2,
+        "removed": 1,
+        "removal_rate": 0.3333,
+        "sample_reasons": [
+          "[RS_20260401143542_0550857f] [output:reasoning] ' ' is too short (path: ['conclusion'])"
+        ]
+      },
+      {
+        "stage": "deduplication",
+        "input": 2,
+        "output": 2,
+        "removed": 0,
+        "removal_rate": 0.0,
+        "sample_reasons": []
+      },
+      {
+        "stage": "low_confidence_removal",
+        "input": 2,
+        "output": 1,
+        "removed": 1,
+        "removal_rate": 0.5,
+        "sample_reasons": [
+          "[EX_20260401143542_180dfcf9] confidence=0.20"
+        ]
+      },
+      {
+        "stage": "output_length_filter",
+        "input": 1,
+        "output": 1,
+        "removed": 0,
+        "removal_rate": 0.0,
+        "sample_reasons": []
+      },
+      {
+        "stage": "non_accepted_removal",
+        "input": 1,
+        "output": 1,
+        "removed": 0,
+        "removal_rate": 0.0,
+        "sample_reasons": []
+      }
+    ]
+  }
+}

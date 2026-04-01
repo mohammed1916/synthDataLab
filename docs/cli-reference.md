@@ -27,12 +27,17 @@ python main.py run-all [OPTIONS]
 
 ### Options
 
-| Flag                     | Default        | Description                               |
-| ------------------------ | -------------- | ----------------------------------------- |
-| `--input PATH`           | bundled sample | Path to a `.txt` or `.json` articles file |
-| `--mock / --no-mock`     | `--no-mock`    | Use mock LLM (no Ollama server required)  |
-| `--resume / --no-resume` | `--no-resume`  | Resume from last checkpoint               |
-| `--workers N`            | `1`            | Parallel LLM generation threads (1–16)    |
+| Flag                     | Default        | Description                                                                 |
+| ------------------------ | -------------- | --------------------------------------------------------------------------- |
+| `--input PATH`           | bundled sample | Path to a `.txt` or `.json` articles file                                   |
+| `--mock / --no-mock`     | `--no-mock`    | Use mock LLM (no Ollama server required)                                    |
+| `--resume / --no-resume` | `--no-resume`  | Resume from last checkpoint                                                 |
+| `--workers N`            | `1`            | Parallel LLM generation threads (1–16)                                      |
+| `--agent / --no-agent`   | `--no-agent`   | Use `MultiAgentOrchestrator` (CriticAgent + Steering) for generation        |
+| `--steering MODE`        | `auto`         | Steering mode when `--agent` is set: `auto` \| `review-low` \| `review-all` |
+| `--threshold FLOAT`      | `0.70`         | Critic pass threshold for `--agent` mode (0.0–1.0)                          |
+| `--force / --no-force`   | `--no-force`   | Skip cross-run dedup; reprocess all samples                                 |
+| `--reset-fingerprints`   | off            | Wipe the fingerprint store before running (start dedup fresh)               |
 
 ### Steps executed
 
@@ -54,7 +59,49 @@ python main.py run-all --input articles.json --workers 4
 
 # Resume a failed run from the last completed step
 python main.py run-all --mock --resume
+
+# Multi-agent run with human review of low-scoring samples
+python main.py run-all --mock --agent --steering review-low --threshold 0.65
+
+# Force reprocess all samples from this run (bypass cross-run dedup)
+python main.py run-all --mock --force
+
+# Wipe fingerprint history and start fresh
+python main.py run-all --mock --reset-fingerprints
 ```
+
+### Cross-run deduplication
+
+`run-all` maintains a SHA-256 fingerprint store at `data/fingerprints.json`.
+On each run it computes fingerprints for every generated sample; samples already
+seen in previous runs are filtered out before validation begins. The raw
+artifact file is always written in full — only what goes _downstream_ is filtered.
+
+If all generated samples have already been processed:
+
+```
+⚠  Nothing new to process — all 30 sample(s) were already seen in a previous run.
+Tip: use --force to re-process anyway, or --reset-fingerprints to start fresh.
+```
+
+The command exits with code `0` in this case (not an error).
+
+### Versioned run artifacts
+
+Every successful `run-all` writes to `data/runs/<run_id>/`:
+
+```
+data/runs/d50c5250/
+├── manifest.json          # {run_id, git_sha, config_hash, model, task_types, ...}
+├── raw_dataset.jsonl
+├── annotated_dataset.jsonl
+├── filtered_dataset.jsonl
+├── metrics_report.json
+├── error_analysis.json
+└── critic_scores.jsonl    # only when --agent is set
+```
+
+A `data/latest` symlink always points to the most recent `runs/<run_id>/`.
 
 ---
 
@@ -228,9 +275,97 @@ python main.py guidelines
 
 ---
 
+## `health-check`
+
+Pre-flight check for Ollama connectivity, disk space, config validity, and
+required Python packages. Useful before kicking off a long run.
+
+```
+python main.py health-check [--mock]
+```
+
+### Options
+
+| Flag                 | Default     | Description                                |
+| -------------------- | ----------- | ------------------------------------------ |
+| `--mock / --no-mock` | `--no-mock` | Skip LLM connectivity check (useful in CI) |
+
+### Checks performed
+
+| Check                | What it verifies                              |
+| -------------------- | --------------------------------------------- |
+| Config valid         | `Config.validate()` passes                    |
+| Disk space (≥500 MB) | At least 500 MB free in the data directory    |
+| Data dir writable    | Can create a test file in `data/`             |
+| LLM reachable        | Ollama `/api/tags` responds + model is loaded |
+| Package: click       | `import click` succeeds                       |
+| Package: rich        | `import rich` succeeds                        |
+| Package: ollama      | `import ollama` succeeds                      |
+
+Exits with code `0` if all checks pass, `1` if any fail.
+
+### Example
+
+```bash
+python main.py health-check --mock
+# → prints Rich table of ✓ PASS / ✗ FAIL rows
+# → "All checks passed — pipeline is ready."
+```
+
+---
+
+## `list-runs`
+
+List all versioned pipeline runs stored in `data/runs/`, sorted newest first.
+
+```
+python main.py list-runs
+```
+
+Prints a Rich table with columns: **Run ID**, **Git SHA**, **Model**, **Tasks**, **Config Hash**.
+
+```bash
+python main.py list-runs
+#  Run ID    │ Git SHA  │ Model     │ Tasks                    │ Config Hash
+#  d50c5250  │ 145f51f  │ mock      │ qa, extraction, reasoning │ 4a7b3c1d
+```
+
+---
+
+## `export`
+
+Export the filtered dataset to an annotation platform format.
+
+```
+python main.py export [OPTIONS]
+```
+
+### Options
+
+| Flag              | Default                       | Description                 |
+| ----------------- | ----------------------------- | --------------------------- |
+| `--dataset PATH`  | `data/filtered_dataset.jsonl` | Source JSONL file to export |
+| `--format FORMAT` | `argilla`                     | `argilla` or `labelstudio`  |
+| `--output PATH`   | `data/export_<format>.jsonl`  | Output file path            |
+
+### Examples
+
+```bash
+# Export to Argilla format (default)
+python main.py export
+
+# Export to Label Studio format
+python main.py export --format labelstudio
+
+# Export a specific dataset file
+python main.py export --dataset data/filtered_dataset.jsonl --format labelstudio --output out.jsonl
+```
+
+---
+
 ## Exit codes
 
-| Code | Meaning                                        |
-| ---- | ---------------------------------------------- |
-| `0`  | Success                                        |
-| `1`  | Fatal error (file not found, bad config, etc.) |
+| Code | Meaning                                                                          |
+| ---- | -------------------------------------------------------------------------------- |
+| `0`  | Success (including clean exit when cross-run dedup finds nothing new to process) |
+| `1`  | Fatal error (file not found, bad config, Ollama health check failure, etc.)      |

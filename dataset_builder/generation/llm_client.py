@@ -129,6 +129,42 @@ class OllamaClient(BaseLLMClient):
                     )
         raise last_exc
 
+    def health_check(self) -> None:
+        """
+        Verify the Ollama server is reachable and the configured model is loaded.
+
+        Raises ``RuntimeError`` with a human-readable fix suggestion if either
+        condition is not met.  Call this once at startup to fail fast.
+        """
+        import urllib.request
+        import urllib.error
+
+        # 1. Check server reachability via the /api/tags endpoint
+        tags_url = self.base_url.rstrip("/") + "/api/tags"
+        try:
+            with urllib.request.urlopen(tags_url, timeout=5) as resp:
+                import json as _json
+                data = _json.loads(resp.read())
+        except urllib.error.URLError as exc:
+            raise RuntimeError(
+                f"Ollama server not reachable at {self.base_url}.\n"
+                "  Fix: start Ollama with `ollama serve` (or `brew services start ollama`)."
+            ) from exc
+        except Exception as exc:
+            raise RuntimeError(
+                f"Unexpected error checking Ollama health ({exc}).\n"
+                "  Fix: ensure Ollama is running and accessible."
+            ) from exc
+
+        # 2. Check the model is available
+        loaded_models = {m.get("name", "") for m in data.get("models", [])}
+        if self.model not in loaded_models:
+            raise RuntimeError(
+                f"Model '{self.model}' not found in Ollama.\n"
+                f"  Fix: run `ollama pull {self.model}` to download it.\n"
+                f"  Available models: {sorted(loaded_models) or '(none)'}"
+            )
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Mock client — rich synthetic data, no API key required

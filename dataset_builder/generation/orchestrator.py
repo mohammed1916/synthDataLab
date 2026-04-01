@@ -65,6 +65,22 @@ logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Custom exceptions
+# ─────────────────────────────────────────────────────────────────────────────
+
+class CollapseAbortError(Exception):
+    """Raised by ``_update_collapse_risk`` when collapse risk exceeds the abort threshold."""
+
+    def __init__(self, score: float, n_accepted: int) -> None:
+        self.score = score
+        self.n_accepted = n_accepted
+        super().__init__(
+            f"Model collapse risk CRITICAL (score={score:.3f}) after {n_accepted} accepted samples. "
+            "Aborting to prevent dataset homogenisation."
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Steering configuration
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -83,6 +99,7 @@ class OrchestratorConfig:
     critic_review_threshold: float = 0.45   # REVIEW if composite ≥ this
     auto_reject_below: float = 0.30         # hard-reject if composite < this
     collapse_check_interval: int = 10       # re-compute collapse risk every N samples
+    collapse_abort_threshold: float = 0.80  # abort if collapse risk ≥ this (0 = disabled)
     show_dashboard: bool = True
     save_critic_metadata: bool = True       # attach critic scores to sample metadata
 
@@ -297,69 +314,97 @@ class MultiAgentOrchestrator:
             total=total,
             show_dashboard=self.orch.show_dashboard,
         ) as tracker:
-            for idx, (chunk, task_type) in enumerate(work, start=1):
-                # ── 1. Generate ───────────────────────────────────────────────
-                sample = self.generator._generate_one(chunk, task_type)
-                if sample is None:
+            try:
+                for idx, (chunk, task_type) in enumerate(work, start=1):
+                    # ── 1. Generate ───────────────────────────────────────────────
+                    sample = self.generator._generate_one(chunk, task_type)
+                    if sample is None:
+                        result.total_generated += 1
+                        tracker.record("—", task_type, 0.0, 0.0, "ERROR")
+                        continue
+
                     result.total_generated += 1
-                    tracker.record("—", task_type, 0.0, 0.0, "ERROR")
-                    continue
+                    sample_dict = sample.to_dict()
 
-                result.total_generated += 1
-                sample_dict = sample.to_dict()
+                    # ── 2. Critic scoring ─────────────────────────────────────────
+                    critic_score = self.critic.score(sample_dict)
+                    result.critic_scores.append(critic_score)
 
-                # ── 2. Critic scoring ─────────────────────────────────────────
-                critic_score = self.critic.score(sample_dict)
-                result.critic_scores.append(critic_score)
+                    if self.orch.save_critic_metadata:
+                        sample_dict.setdefault("metadata", {})["critic"] = (
+                            critic_score.to_dict()
+                        )
 
-                if self.orch.save_critic_metadata:
-                    sample_dict.setdefault("metadata", {})["critic"] = (
-                        critic_score.to_dict()
+                    # ── 3. Steering gate ──────────────────────────────────────────
+                    status = self._apply_steering(
+                        sample_dict, critic_score, idx, total
                     )
 
-                # ── 3. Steering gate ──────────────────────────────────────────
-                status = self._apply_steering(
-                    sample_dict, critic_score, idx, total
+                    if status == "QUIT":
+                        result.aborted = True
+                        logger.warning("User aborted multi-agent run at sample %d/%d", idx, total)
+                        break
+
+                    # ── 4. Bucket sample ──────────────────────────────────────────
+                    if status == "ACCEPT":
+                        result.accepted.append(sample_dict)
+                    elif status == "REJECT":
+                        result.rejected.append(sample_dict)
+                    else:   # FIX_REQUIRED
+                        result.fix_required.append(sample_dict)
+
+                    # ── 5. Record to tracker ──────────────────────────────────────
+                    tracker.record(
+                        sample_id=sample_dict.get("id", ""),
+                        task_type=task_type,
+                        confidence=float(
+                            sample_dict.get("metadata", {}).get("confidence", 0.0)
+                        ),
+                        critic_score=critic_score.composite,
+                        status=status,
+                    )
+
+                    # ── 6. Periodic collapse check ────────────────────────────────
+                    if idx % self.orch.collapse_check_interval == 0:
+                        self._update_collapse_risk(tracker, result.accepted)
+
+                    # ── 7. External callback ──────────────────────────────────────
+                    if on_sample:
+                        try:
+                            on_sample(sample_dict, critic_score, status)
+                        except Exception as cb_exc:
+                            logger.debug("on_sample callback error: %s", cb_exc)
+
+            except CollapseAbortError as abort_exc:
+                result.aborted = True
+                logger.error(
+                    "Auto-halted: %s", abort_exc,
                 )
+                try:
+                    from rich.console import Console
+                    Console().print(
+                        f"[bold red]\u26a0  AUTO-HALT:[/bold red] {abort_exc}\n"
+                        "[yellow]Partial results saved.[/yellow]"
+                    )
+                except ImportError:
+                    print(f"AUTO-HALT: {abort_exc}")
 
-                if status == "QUIT":
-                    result.aborted = True
-                    logger.warning("User aborted multi-agent run at sample %d/%d", idx, total)
-                    break
+        # Final collapse check (may raise CollapseAbortError — OK to propagate here)
+        try:
+            self._update_collapse_risk(tracker, result.accepted)
+        except CollapseAbortError:
+            result.aborted = True
 
-                # ── 4. Bucket sample ──────────────────────────────────────────
-                if status == "ACCEPT":
-                    result.accepted.append(sample_dict)
-                elif status == "REJECT":
-                    result.rejected.append(sample_dict)
-                else:   # FIX_REQUIRED
-                    result.fix_required.append(sample_dict)
-
-                # ── 5. Record to tracker ──────────────────────────────────────
-                tracker.record(
-                    sample_id=sample_dict.get("id", ""),
-                    task_type=task_type,
-                    confidence=float(
-                        sample_dict.get("metadata", {}).get("confidence", 0.0)
-                    ),
-                    critic_score=critic_score.composite,
-                    status=status,
-                )
-
-                # ── 6. Periodic collapse check ────────────────────────────────
-                if idx % self.orch.collapse_check_interval == 0:
-                    self._update_collapse_risk(tracker, result.accepted)
-
-                # ── 7. External callback ──────────────────────────────────────
-                if on_sample:
-                    try:
-                        on_sample(sample_dict, critic_score, status)
-                    except Exception as cb_exc:
-                        logger.debug("on_sample callback error: %s", cb_exc)
-
-        # Final collapse check
-        self._update_collapse_risk(tracker, result.accepted)
         tracker.print_final_report()
+
+        # ── Repair pass for FIX_REQUIRED samples (one attempt each) ───────────
+        if result.fix_required and not result.aborted:
+            repaired, still_broken = self._repair_fix_required(result.fix_required)
+            # Promote repaired samples that now pass the critic threshold
+            result.accepted.extend(repaired)
+            result.fix_required = still_broken
+            if repaired:
+                logger.info("Repair agent promoted %d FIX_REQUIRED → accepted", len(repaired))
 
         # Attach final metrics snapshot
         if result.accepted:
@@ -378,6 +423,57 @@ class MultiAgentOrchestrator:
             result.acceptance_rate * 100,
         )
         return result
+
+    # ── Repair agent ──────────────────────────────────────────────────────────
+
+    def _repair_fix_required(
+        self,
+        fix_required: List[Dict[str, Any]],
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        Attempt one regeneration pass for FIX_REQUIRED samples.
+
+        For each sample the generator is called again with the same source chunk
+        and task type.  The new sample is re-scored; if it crosses the pass
+        threshold it is promoted to accepted; otherwise it remains fix_required.
+
+        Returns:
+            (promoted, still_broken) — two lists of sample dicts.
+        """
+        from ingestion.ingestor import IngestionResult
+
+        promoted: List[Dict[str, Any]] = []
+        still_broken: List[Dict[str, Any]] = []
+
+        for sample_dict in fix_required:
+            # Re-construct a minimal IngestionResult from the stored metadata
+            meta = sample_dict.get("metadata", {})
+            source = meta.get("source", "repair")
+            task_type = sample_dict.get("task_type", "qa")
+            input_text = sample_dict.get("input", "")
+
+            chunk = IngestionResult(
+                source_type="text",
+                content=input_text,
+                metadata={"source": source, "repair_attempt": True},
+            )
+            repaired = self.generator._generate_one(chunk, task_type)
+            if repaired is None:
+                still_broken.append(sample_dict)
+                continue
+
+            repaired_dict = repaired.to_dict()
+            new_score = self.critic.score(repaired_dict)
+            if self.orch.save_critic_metadata:
+                repaired_dict.setdefault("metadata", {})["critic"] = new_score.to_dict()
+                repaired_dict["metadata"]["repaired"] = True
+
+            if new_score.composite >= self.orch.critic_pass_threshold:
+                promoted.append(repaired_dict)
+            else:
+                still_broken.append(repaired_dict)
+
+        return promoted, still_broken
 
     # ── Steering logic ────────────────────────────────────────────────────────
 
@@ -440,5 +536,11 @@ class MultiAgentOrchestrator:
                     score,
                     len(accepted),
                 )
+            # Auto-halt if configured threshold is crossed
+            abort_thresh = self.orch.collapse_abort_threshold
+            if abort_thresh and 0.0 < abort_thresh <= 1.0 and score >= abort_thresh:
+                raise CollapseAbortError(score, len(accepted))
+        except CollapseAbortError:
+            raise
         except Exception as exc:
             logger.debug("Collapse risk update failed: %s", exc)

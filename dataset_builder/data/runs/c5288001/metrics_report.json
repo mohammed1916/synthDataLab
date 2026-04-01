@@ -1,0 +1,106 @@
+{
+  "summary": {
+    "raw_samples": 0,
+    "filtered_samples": 0,
+    "samples_removed": 0
+  },
+  "metrics": {
+    "schema_validity_rate": {
+      "raw": 0.0,
+      "filtered": 0.0,
+      "delta": "++0.00%"
+    },
+    "task_consistency_score": {
+      "raw": 0.0,
+      "filtered": 0.0,
+      "delta": "++0.00%"
+    },
+    "completeness_score": {
+      "raw": 0.0,
+      "filtered": 0.0,
+      "delta": "++0.00%"
+    },
+    "hallucination_rate": {
+      "raw": 0.0,
+      "filtered": 0.0,
+      "delta": "++0.00%"
+    },
+    "diversity_score": {
+      "raw": 0.0,
+      "filtered": 0.0,
+      "delta": "++0.00%"
+    },
+    "mean_confidence": {
+      "raw": 0.0,
+      "filtered": 0.0,
+      "delta": "++0.00%"
+    },
+    "vocabulary_entropy_bits": {
+      "raw": 0.0,
+      "filtered": 0.0,
+      "delta": "++0.00%"
+    },
+    "bigram_entropy_bits": {
+      "raw": 0.0,
+      "filtered": 0.0,
+      "delta": "++0.00%"
+    },
+    "collapse_risk_score": {
+      "raw": 0.0,
+      "filtered": 0.0,
+      "alert": "OK"
+    }
+  },
+  "task_distribution": {
+    "raw": {},
+    "filtered": {}
+  },
+  "filtering_pipeline": {
+    "total_input": 0,
+    "total_output": 0,
+    "total_removed": 0,
+    "overall_retention_rate": 0.0,
+    "stages": [
+      {
+        "stage": "schema_violation_removal",
+        "input": 0,
+        "output": 0,
+        "removed": 0,
+        "removal_rate": 0.0,
+        "sample_reasons": []
+      },
+      {
+        "stage": "deduplication",
+        "input": 0,
+        "output": 0,
+        "removed": 0,
+        "removal_rate": 0.0,
+        "sample_reasons": []
+      },
+      {
+        "stage": "low_confidence_removal",
+        "input": 0,
+        "output": 0,
+        "removed": 0,
+        "removal_rate": 0.0,
+        "sample_reasons": []
+      },
+      {
+        "stage": "output_length_filter",
+        "input": 0,
+        "output": 0,
+        "removed": 0,
+        "removal_rate": 0.0,
+        "sample_reasons": []
+      },
+      {
+        "stage": "non_accepted_removal",
+        "input": 0,
+        "output": 0,
+        "removed": 0,
+        "removal_rate": 0.0,
+        "sample_reasons": []
+      }
+    ]
+  }
+}

@@ -135,7 +135,21 @@ python main.py run-all --input /path/to/articles.json
 
 ---
 
-## 6 — Run the test suite
+## 6 — Pre-flight check
+
+Before running a long real-LLM run, verify the environment is healthy:
+
+```bash
+# Check Ollama, disk space, config, and Python packages
+python main.py health-check
+
+# In mock / CI mode (skips LLM connectivity check)
+python main.py health-check --mock
+```
+
+---
+
+## 7 — Run the test suite
 
 ```bash
 make test
@@ -143,11 +157,11 @@ make test
 cd dataset_builder && python -m pytest tests/ -v
 ```
 
-All 73 tests should pass.
+All 138 tests should pass.
 
 ---
 
-## 7 — Use Make shortcuts
+## 8 — Use Make shortcuts
 
 ```bash
 make help              # show all targets
@@ -167,12 +181,15 @@ make docker-run        # run in Docker (mock, data in ./data-out/)
 
 After a successful run, these files are written to `dataset_builder/data/`:
 
-| File                      | Format | Contents                                   |
-| ------------------------- | ------ | ------------------------------------------ |
-| `raw_dataset.jsonl`       | JSONL  | All generated samples (including rejected) |
-| `annotated_dataset.jsonl` | JSONL  | Samples with validation annotations        |
-| `filtered_dataset.jsonl`  | JSONL  | High-quality samples only                  |
-| `metrics_report.json`     | JSON   | Full metrics report (raw vs filtered)      |
-| `error_analysis.json`     | JSON   | Error patterns and rejection reasons       |
-| `evolved_prompts.jsonl`   | JSONL  | Evol-Instruct evolved prompts (if run)     |
-| `logs/pipeline_<ts>.log`  | Text   | Full run log with timestamps               |
+| File                      | Format  | Contents                                    |
+| ------------------------- | ------- | ------------------------------------------- |
+| `raw_dataset.jsonl`       | JSONL   | All generated samples (including rejected)  |
+| `annotated_dataset.jsonl` | JSONL   | Samples with validation annotations         |
+| `filtered_dataset.jsonl`  | JSONL   | High-quality samples only                   |
+| `metrics_report.json`     | JSON    | Full metrics report (raw vs filtered)       |
+| `error_analysis.json`     | JSON    | Error patterns and rejection reasons        |
+| `fingerprints.json`       | JSON    | SHA-256 fingerprint store (cross-run dedup) |
+| `runs/<run_id>/`          | dir     | Versioned snapshot + `manifest.json`        |
+| `latest/`                 | symlink | Points to most recent `runs/<run_id>/`      |
+| `evolved_prompts.jsonl`   | JSONL   | Evol-Instruct evolved prompts (if run)      |
+| `logs/pipeline_<ts>.log`  | Text    | Full run log with timestamps                |

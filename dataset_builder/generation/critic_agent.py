@@ -147,6 +147,67 @@ class CriticAgent:
         """Score a list of samples, returning one CriticScore per sample."""
         return [self.score(s) for s in samples]
 
+    def score_with_llm(
+        self,
+        sample: Dict[str, Any],
+        llm_client: Any,
+    ) -> CriticScore:
+        """
+        LLM-as-Judge scoring using a G-Eval style JSON prompt.
+
+        Sends the sample to the LLM and asks it to return a JSON object with
+        four float scores (0–1) for relevance, coherence, groundedness, fluency.
+        Falls back to heuristic ``score()`` on any parse failure.
+
+        Args:
+            sample: A DatasetSample-compatible dict.
+            llm_client: Any client with a ``generate(prompt: str) -> str`` method.
+
+        Returns:
+            ``CriticScore`` from LLM judgment, or heuristic fallback.
+        """
+        import json as _json
+
+        task_type = sample.get("task_type", "unknown")
+        input_snippet = str(sample.get("input", ""))[:400]
+        output_snippet = _json.dumps(sample.get("output", {}), ensure_ascii=False)[:600]
+
+        prompt = (
+            "You are a strict quality judge for a synthetic NLP dataset.\n"
+            "Score the following sample on four axes, returning ONLY a JSON object.\n\n"
+            f"Task type: {task_type}\n"
+            f"Input: {input_snippet}\n"
+            f"Output: {output_snippet}\n\n"
+            "Return exactly this JSON (no markdown, no explanation):\n"
+            '{"relevance": 0.0, "coherence": 0.0, "groundedness": 0.0, "fluency": 0.0}\n\n'
+            "Scores must be floats in [0.0, 1.0] where 1.0 = excellent."
+        )
+
+        try:
+            raw = llm_client.generate(prompt)
+            # Strip markdown fences if present
+            raw = re.sub(r"```(?:json)?", "", raw).strip().strip("`")
+            # Extract first JSON object
+            match = re.search(r"\{[^}]+\}", raw, re.DOTALL)
+            if not match:
+                raise ValueError("No JSON object in LLM response")
+            scores = _json.loads(match.group())
+
+            def _clamp(v: Any) -> float:
+                return max(0.0, min(1.0, float(v)))
+
+            return CriticScore(
+                relevance=_clamp(scores.get("relevance", 0.0)),
+                coherence=_clamp(scores.get("coherence", 0.0)),
+                groundedness=_clamp(scores.get("groundedness", 0.0)),
+                fluency=_clamp(scores.get("fluency", 0.0)),
+            )
+        except Exception as exc:
+            logger.debug("LLM-as-Judge parse failed (%s) — falling back to heuristic scoring.", exc)
+            return self.score(sample)
+
+
+
     # ── Axis scorers ──────────────────────────────────────────────────────────
 
     def _score_relevance(self, input_text: str, output: Dict[str, Any]) -> float:

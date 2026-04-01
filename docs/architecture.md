@@ -139,6 +139,43 @@ log warning and turns the dashboard gauge red.
 after each step. On re-run with `--resume`, already-completed steps are loaded
 from disk and skipped. The checkpoint is cleared on successful completion.
 
+### Cross-run deduplication
+
+`filtering/fingerprint_store.py` maintains a SHA-256 fingerprint set across
+all pipeline runs. Each fingerprint is derived from:
+
+```
+SHA-256( lower(strip(input_text)) + "|" + task_type )[:32]
+```
+
+On each `run-all` execution:
+
+1. All generated samples are **always** written to `raw_dataset.jsonl` unchanged.
+2. `FingerprintStore.filter_new()` partitions into _(new, already-seen)_ **in-memory only** — the raw file is never overwritten.
+3. Only genuinely new samples proceed to validation, filtering, and evaluation.
+4. If all samples are already seen, the run exits cleanly with code `0` and a descriptive message.
+5. After a successful full run, `FingerprintStore.save()` atomically persists the updated set.
+
+Escape hatches: `--force` (skip dedup this run) and `--reset-fingerprints` (wipe the store).
+
+### Config versioning and run lineage
+
+Every `Config` instance carries:
+
+| Property      | Source                                     | Purpose                                 |
+| ------------- | ------------------------------------------ | --------------------------------------- |
+| `run_id`      | 8-char hex from `datetime` + entropy       | Unique identifier for each pipeline run |
+| `git_sha`     | `git rev-parse --short HEAD`               | Code version at time of run             |
+| `config_hash` | SHA-256 of JSON-serialised config snapshot | Detect config drift between runs        |
+
+`Config.validate()` raises `ValueError` for misconfigured thresholds, a
+non-writable data directory, or `< 500 MB` free disk space. It is called
+automatically at the start of `run-all`.
+
+Each `run-all` creates `data/runs/<run_id>/manifest.json` containing all
+three properties plus model name, task types, and timestamp. A `data/latest`
+symlink always points to the most recent `runs/<run_id>/`.
+
 ---
 
 ## Dependency graph (simplified)

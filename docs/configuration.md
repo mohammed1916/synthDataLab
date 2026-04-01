@@ -7,6 +7,36 @@ described in [CLI Reference](cli-reference.md).
 
 ---
 
+## Run versioning properties
+
+These are **read-only computed properties** on every `Config` instance.
+They are set automatically at construction time and written to each
+run's `manifest.json`.
+
+| Property      | Type  | Source                                             | Purpose                                         |
+| ------------- | ----- | -------------------------------------------------- | ----------------------------------------------- |
+| `run_id`      | `str` | 8-char hex derived from UTC datetime + entropy     | Unique identifier for each `run-all` invocation |
+| `git_sha`     | `str` | `git rev-parse --short HEAD` (falls back to `"?"`) | Code version pinned to each run                 |
+| `config_hash` | `str` | SHA-256 of JSON-serialised config snapshot         | Detect config drift between runs                |
+
+---
+
+## `Config.validate()`
+
+Called automatically at the start of `run-all`. Raises `ValueError` if any
+of the following conditions are found:
+
+- `filtering.min_confidence` outside `[0, 1]`
+- `filtering.max_duplicate_similarity` outside `(0, 1]`
+- `filtering.max_output_length` ≤ `filtering.min_output_length`
+- `generation.max_workers` < 1
+- `storage.data_dir` is not writable
+- `< 500 MB` free disk space in the data directory
+
+You can also call `health-check --mock` to see a formatted table of all checks.
+
+---
+
 ## `LLMConfig`
 
 Controls the language-model backend.
@@ -130,3 +160,11 @@ Used by the `generate-agent` command.
 - Run `evolve` with 3+ rounds before generation
 - Monitor `collapse_risk_score` in the dashboard — CRITICAL (≥ 0.70) means
   you should diversify your input sources immediately
+
+### For multi-run dataset growth
+
+- Do **not** use `--reset-fingerprints` unless intentionally restarting from scratch
+- Add new input sources between runs — cross-run dedup ensures only genuinely
+  new samples pass through the quality pipeline
+- Use `list-runs` to audit run history and compare `config_hash` values to
+  detect unintended config changes across runs

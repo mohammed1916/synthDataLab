@@ -1,0 +1,24 @@
+{
+  "run_id": "f6059e1b",
+  "created_at": "2026-04-01T14:35:46.142450+00:00",
+  "updated_at": "2026-04-01T14:35:46.386658+00:00",
+  "status": "succeeded",
+  "input_path": null,
+  "input_text": "This is a simple test document for synthDataLab.",
+  "mock": true,
+  "workers": 1,
+  "agent": false,
+  "steering": "auto",
+  "threshold": 0.7,
+  "force": false,
+  "reset_fingerprints": false,
+  "error": null,
+  "run_dir": "/Users/MohammedIbrahim/Documents/a/synthDataLab/dataset_builder/data/runs/f6059e1b",
+  "outputs": {
+    "raw": "/Users/MohammedIbrahim/Documents/a/synthDataLab/dataset_builder/data/raw_dataset.jsonl",
+    "annotated": "/Users/MohammedIbrahim/Documents/a/synthDataLab/dataset_builder/data/annotated_dataset.jsonl",
+    "filtered": "/Users/MohammedIbrahim/Documents/a/synthDataLab/dataset_builder/data/filtered_dataset.jsonl",
+    "metrics": "/Users/MohammedIbrahim/Documents/a/synthDataLab/dataset_builder/data/metrics_report.json",
+    "error_analysis": "/Users/MohammedIbrahim/Documents/a/synthDataLab/dataset_builder/data/error_analysis.json"
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "total_rejected": 2,
+  "total_fix_required": 0,
+  "error_counts": {
+    "LOW_CONFIDENCE": 1,
+    "SCHEMA_INVALID": 1,
+    "EMPTY_FIELD": 1
+  },
+  "error_rates": {
+    "LOW_CONFIDENCE": 0.5,
+    "SCHEMA_INVALID": 0.5,
+    "EMPTY_FIELD": 0.5
+  },
+  "per_task_breakdown": {
+    "extraction": {
+      "LOW_CONFIDENCE": 1
+    },
+    "reasoning": {
+      "SCHEMA_INVALID": 1,
+      "EMPTY_FIELD": 1
+    }
+  },
+  "examples": [
+    {
+      "sample_id": "EX_20260401143546_d2bbbd8f",
+      "task_type": "extraction",
+      "error_code": "LOW_CONFIDENCE",
+      "error_message": "confidence=0.20 is below threshold=0.6",
+      "before": {
+        "entities": [
+          {
+            "text": "This",
+            "type": "ORGANIZATION"
+          }
+        ],
+        "relations": [],
+        "key_facts": [
+          "This is a simple test document for synthDataLab."
+        ]
+      },
+      "after": {
+        "entities": [
+          {
+            "text": "This",
+            "type": "ORGANIZATION"
+          }
+        ],
+        "relations": [],
+        "key_facts": [
+          "This is a simple test document for synthDataLab."
+        ]
+      },
+      "correction_applied": false
+    },
+    {
+      "sample_id": "RS_20260401143546_f8bf6aa4",
+      "task_type": "reasoning",
+      "error_code": "SCHEMA_INVALID",
+      "error_message": "[output:reasoning] ' ' is too short (path: ['conclusion'])",
+      "before": {
+        "reasoning_steps": [
+          "Step 1 — The passage introduces the concept of This is a simple test document for synthDataLab....",
+          "Step 2 — Key evidence is found in the statement: 'This is a simple test document for synthDataLab.'",
+          "Step 3 — This leads to the conclusion that the passage demonstrates the stated claim."
+        ],
+        "conclusion": " ",
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "after": {
+        "reasoning_steps": [
+          "Step 1 — The passage introduces the concept of This is a simple test document for synthDataLab....",
+          "Step 2 — Key evidence is found in the statement: 'This is a simple test document for synthDataLab.'",
+          "Step 3 — This leads to the conclusion that the passage demonstrates the stated claim."
+        ],
+        "conclusion": " ",
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "correction_applied": false
+    },
+    {
+      "sample_id": "RS_20260401143546_f8bf6aa4",
+      "task_type": "reasoning",
+      "error_code": "EMPTY_FIELD",
+      "error_message": "Reasoning: conclusion is empty",
+      "before": {
+        "reasoning_steps": [
+          "Step 1 — The passage introduces the concept of This is a simple test document for synthDataLab....",
+          "Step 2 — Key evidence is found in the statement: 'This is a simple test document for synthDataLab.'",
+          "Step 3 — This leads to the conclusion that the passage demonstrates the stated claim."
+        ],
+        "conclusion": " ",
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "after": {
+        "reasoning_steps": [
+          "Step 1 — The passage introduces the concept of This is a simple test document for synthDataLab....",
+          "Step 2 — Key evidence is found in the statement: 'This is a simple test document for synthDataLab.'",
+          "Step 3 — This leads to the conclusion that the passage demonstrates the stated claim."
+        ],
+        "conclusion": " ",
+        "confidence_explanation": "High confidence — the conclusion follows directly from the textual evidence without requiring external assumptions."
+      },
+      "correction_applied": false
+    }
+  ],
+  "auto_corrections_applied": 0
+}

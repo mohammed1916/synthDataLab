@@ -1,0 +1,120 @@
+{
+  "summary": {
+    "raw_samples": 30,
+    "filtered_samples": 25,
+    "samples_removed": 5
+  },
+  "metrics": {
+    "schema_validity_rate": {
+      "raw": 0.8333333333333334,
+      "filtered": 1.0,
+      "delta": "++16.67%"
+    },
+    "task_consistency_score": {
+      "raw": 0.9333333333333333,
+      "filtered": 1.0,
+      "delta": "++6.67%"
+    },
+    "completeness_score": {
+      "raw": 0.9777777777777779,
+      "filtered": 1.0,
+      "delta": "++2.22%"
+    },
+    "hallucination_rate": {
+      "raw": 0.0,
+      "filtered": 0.0,
+      "delta": "++0.00%"
+    },
+    "diversity_score": {
+      "raw": 0.2610223642172524,
+      "filtered": 0.28835978835978837,
+      "delta": "++2.73%"
+    },
+    "mean_confidence": {
+      "raw": 0.9299999999999999,
+      "filtered": 1.0,
+      "delta": "++7.00%"
+    },
+    "vocabulary_entropy_bits": {
+      "raw": 8.52369494359344,
+      "filtered": 8.495451032127697,
+      "delta": "-2.82%"
+    },
+    "bigram_entropy_bits": {
+      "raw": 10.146292727242493,
+      "filtered": 10.102910023882563,
+      "delta": "-4.34%"
+    },
+    "collapse_risk_score": {
+      "raw": 0.6738,
+      "filtered": 0.6752,
+      "alert": "WARNING — Collapse risk 0.68. Vocab entropy=8.50 bits, TTR=0.288. Increase generation temperature and broaden input topics."
+    }
+  },
+  "task_distribution": {
+    "raw": {
+      "qa": 10,
+      "extraction": 10,
+      "reasoning": 10
+    },
+    "filtered": {
+      "qa": 10,
+      "extraction": 9,
+      "reasoning": 6
+    }
+  },
+  "filtering_pipeline": {
+    "total_input": 30,
+    "total_output": 25,
+    "total_removed": 5,
+    "overall_retention_rate": 0.8333,
+    "stages": [
+      {
+        "stage": "schema_violation_removal",
+        "input": 30,
+        "output": 25,
+        "removed": 5,
+        "removal_rate": 0.1667,
+        "sample_reasons": [
+          "[RS_20260331173520_7d802621] [output:reasoning] 'conclusion' is a required property (path: [])",
+          "[RS_20260331173520_2c6cd4f4] [output:reasoning] 'conclusion' is a required property (path: [])",
+          "[EX_20260331173520_ea0d6bd7] [output:extraction] 'plain string instead of object' is not of type 'object' (pa",
+          "[RS_20260331173521_8b44edf0] [output:reasoning] ' ' is too short (path: ['conclusion'])",
+          "[RS_20260331173521_ca099585] [output:reasoning] [\"Step 1 — Identify the core claim: 'Messenger RNA (mRNA) vac"
+        ]
+      },
+      {
+        "stage": "deduplication",
+        "input": 25,
+        "output": 25,
+        "removed": 0,
+        "removal_rate": 0.0,
+        "sample_reasons": []
+      },
+      {
+        "stage": "low_confidence_removal",
+        "input": 25,
+        "output": 25,
+        "removed": 0,
+        "removal_rate": 0.0,
+        "sample_reasons": []
+      },
+      {
+        "stage": "output_length_filter",
+        "input": 25,
+        "output": 25,
+        "removed": 0,
+        "removal_rate": 0.0,
+        "sample_reasons": []
+      },
+      {
+        "stage": "non_accepted_removal",
+        "input": 25,
+        "output": 25,
+        "removed": 0,
+        "removal_rate": 0.0,
+        "sample_reasons": []
+      }
+    ]
+  }
+}

@@ -50,6 +50,7 @@ from validation.rule_validator import RuleValidator, annotation_guidelines
 from validation.llm_reviewer import LLMReviewer
 from validation.annotation import AnnotatedSample, AnnotationLabel
 from filtering.pipeline import FilteringPipeline
+from filtering.fingerprint_store import FingerprintStore
 from evaluation.metrics import compute_metrics
 from evaluation.reporter import MetricsReporter
 from analysis.error_analyzer import ErrorAnalyzer
@@ -112,7 +113,7 @@ import datetime
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _load_config(mock: bool = False) -> Config:
+def _load_config(mock: bool = False, skip_preflight: bool = False) -> Config:
     from datetime import timezone
     cfg = Config()
     if mock:
@@ -120,6 +121,23 @@ def _load_config(mock: bool = False) -> Config:
     cfg.ensure_dirs()
     session_id = datetime.datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     _setup_file_logging(cfg.storage.data_dir / "logs", session_id)
+
+    # Fail fast: verify Ollama is reachable before the first LLM call
+    # (skipped for health-check command which does its own checks)
+    if not cfg.use_mock_llm and not skip_preflight:
+        try:
+            from generation.llm_client import OllamaClient
+            _health_client = OllamaClient(
+                model=cfg.llm.model,
+                base_url=cfg.llm.base_url,
+            )
+            _health_client.health_check()
+        except RuntimeError as exc:
+            _echo(f"[bold red]\u26a0  Ollama pre-flight check failed:[/bold red] {exc}")
+            _echo("[dim]Tip: pass --mock to use the offline mock LLM.[/dim]")
+            import sys as _sys
+            _sys.exit(1)
+
     return cfg
 
 
@@ -204,13 +222,9 @@ def step_ingest(cfg: Config, input_path: Optional[str] = None) -> List[Ingestion
 def step_generate(
     cfg: Config, ingestion_results: List[IngestionResult]
 ) -> List[DatasetSample]:
-    """Generate dataset samples from ingestion results."""
+    """Generate dataset samples from ingestion results. Does NOT save to disk."""
     generator = DatasetGenerator(cfg)
     samples = generator.generate_from_ingestion(ingestion_results)
-    _save_jsonl(
-        [s.to_dict() for s in samples],
-        cfg.storage.raw_path(),
-    )
     _echo(
         f"  Generated [bold]{len(samples)}[/bold] raw samples "
         f"({'mock LLM' if cfg.use_mock_llm else cfg.llm.model})"
@@ -227,7 +241,20 @@ def step_validate(
     annotated = rule_validator.validate_batch(sample_dicts)
 
     # LLM reviewer on FIX_REQUIRED samples
-    llm_reviewer = LLMReviewer(llm_client=None)  # uses mock heuristics
+    # Pass a real OllamaClient when Ollama is available; fall back to mock heuristics.
+    _reviewer_client = None
+    if not cfg.use_mock_llm:
+        try:
+            from generation.llm_client import OllamaClient
+            _reviewer_client = OllamaClient(
+                model=cfg.llm.model,
+                base_url=cfg.llm.base_url,
+                timeout=cfg.llm.request_timeout,
+                max_retries=cfg.llm.max_retries,
+            )
+        except Exception:
+            pass  # fall back to heuristic mode silently
+    llm_reviewer = LLMReviewer(llm_client=_reviewer_client)
     annotated = llm_reviewer.review_batch(annotated)
 
     accepted = sum(1 for a in annotated if a.is_accepted)
@@ -333,14 +360,79 @@ def cli():
     type=click.IntRange(min=1, max=16),
     help="Number of parallel LLM generation threads (default 1 = sequential).",
 )
-def run_all(input_path: Optional[str], mock: bool, resume: bool, workers: int):
+@click.option(
+    "--agent/--no-agent",
+    default=False,
+    show_default=True,
+    help="Use multi-agent orchestrator (CriticAgent + steering) for generation.",
+)
+@click.option(
+    "--steering",
+    type=click.Choice(["auto", "review-low", "review-all"], case_sensitive=False),
+    default="auto",
+    show_default=True,
+    help="Human steering mode when --agent is set.",
+)
+@click.option(
+    "--threshold",
+    default=0.70,
+    show_default=True,
+    type=click.FloatRange(0.0, 1.0),
+    help="Critic pass threshold for --agent mode.",
+)
+@click.option(
+    "--force/--no-force",
+    default=False,
+    show_default=True,
+    help="Skip cross-run dedup check and re-process all samples.",
+)
+@click.option(
+    "--reset-fingerprints",
+    is_flag=True,
+    default=False,
+    help="Wipe the fingerprint store before running (start dedup fresh).",
+)
+def run_all(
+    input_path: Optional[str],
+    mock: bool,
+    resume: bool,
+    workers: int,
+    agent: bool,
+    steering: str,
+    threshold: float,
+    force: bool,
+    reset_fingerprints: bool,
+):
     """Run the complete pipeline: ingest → generate → validate → filter → evaluate → analyze."""
+    import time as _time
+
     cfg = _load_config(mock=mock)
     cfg.generation.max_workers = workers
+
+    # Validate config bounds and write access
+    try:
+        cfg.validate()
+    except ValueError as exc:
+        _echo(f"[bold red]Config validation failed:[/bold red] {exc}")
+        sys.exit(1)
+
+    # Create versioned run directory and write manifest
+    run_dir = cfg.run_dir()
+    (run_dir / "manifest.json").write_text(
+        json.dumps(cfg.run_manifest(), indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+
+    # Cross-run fingerprint store
+    fp_path = cfg.storage.data_dir / "fingerprints.json"
+    if reset_fingerprints and fp_path.exists():
+        fp_path.unlink()
+        _echo("  [yellow]Fingerprint store wiped — dedup starts fresh.[/yellow]")
+    fp_store = FingerprintStore(fp_path)
+
     _echo(
         f"\n[bold green]Dataset Builder[/bold green] "
         f"({'Mock LLM' if cfg.use_mock_llm else cfg.llm.model})"
-        f" | workers={workers}\n"
+        f" | workers={workers} | run_id={cfg.run_id}\n"
     )
 
     ckpt = _load_checkpoint(cfg) if resume else {"completed": [], "session_id": None}
@@ -353,8 +445,17 @@ def run_all(input_path: Optional[str], mock: bool, resume: bool, workers: int):
         ckpt["completed"] = sorted(done)
         _save_checkpoint(cfg, ckpt)
 
+    pipeline_start = _time.monotonic()
+
+    def _step_header(n: int, total: int, title: str) -> float:
+        _header(f"{n} / {total}  {title}")
+        return _time.monotonic()
+
+    def _step_footer(t0: float) -> None:
+        _echo(f"  [dim]↳ {_time.monotonic() - t0:.1f}s[/dim]")
+
     # 1. INGEST
-    _header("1 / 6  INGESTION")
+    t0 = _step_header(1, 6, "INGESTION")
     if "ingest" in done:
         ingestion_results = [
             IngestionResult(**r) for r in _load_jsonl(cfg.storage.data_dir / "ingested.jsonl")
@@ -364,18 +465,68 @@ def run_all(input_path: Optional[str], mock: bool, resume: bool, workers: int):
         ingestion_results = step_ingest(cfg, input_path)
         _save_jsonl([r.to_dict() for r in ingestion_results], cfg.storage.data_dir / "ingested.jsonl")
         _mark("ingest")
+    _step_footer(t0)
 
     # 2. GENERATE
-    _header("2 / 6  GENERATION")
+    t0 = _step_header(2, 6, "GENERATION" + (" (Multi-Agent)" if agent else ""))
     if "generate" in done:
         raw_samples = [DatasetSample.from_dict(r) for r in _load_jsonl(cfg.storage.raw_path())]
         _echo(f"  [dim]Skipped (resumed) — {len(raw_samples)} sample(s)[/dim]")
     else:
-        raw_samples = step_generate(cfg, ingestion_results)
+        if agent:
+            from generation.orchestrator import MultiAgentOrchestrator, OrchestratorConfig, SteeringMode
+            orch_cfg = OrchestratorConfig(
+                steering_mode=SteeringMode(steering),
+                critic_pass_threshold=threshold,
+                critic_review_threshold=max(0.0, threshold - 0.25),
+                show_dashboard=not os.environ.get("CI"),
+            )
+            orch = MultiAgentOrchestrator(config=cfg, orch_config=orch_cfg)
+            orch_result = orch.run(ingestion_results)
+            if orch_result.aborted:
+                _echo("[yellow]Orchestration aborted — saving collected samples.[/yellow]")
+            raw_samples = [DatasetSample.from_dict(d) for d in (orch_result.accepted + orch_result.fix_required)]
+            if orch_result.critic_scores:
+                _save_jsonl([cs.to_dict() for cs in orch_result.critic_scores], run_dir / "critic_scores.jsonl")
+        else:
+            raw_samples = step_generate(cfg, ingestion_results)
+
+        # Always persist the full generated set as the raw artifact for this run
+        _save_jsonl([s.to_dict() for s in raw_samples], cfg.storage.raw_path())
+
+        # --- Cross-run dedup (in-memory only; raw file is unchanged) ---
+        if not force and raw_samples:
+            raw_dicts = [s.to_dict() for s in raw_samples]
+            new_dicts, cross_dupes = fp_store.filter_new(raw_dicts)
+            if cross_dupes:
+                _echo(
+                    f"  [yellow]Cross-run dedup:[/yellow] {len(cross_dupes)} already in prior runs, "
+                    f"[green]{len(new_dicts)} truly new[/green]."
+                )
+            if not new_dicts:
+                _echo(
+                    f"\n[bold yellow]⚠  Nothing new to process — all {len(raw_samples)} sample(s) were "
+                    f"already seen in a previous run.[/bold yellow]\n"
+                    f"[dim]Tip: use --force to re-process anyway, or --reset-fingerprints to start fresh.[/dim]\n"
+                )
+                # Persist fingerprints (they were already saved before, nothing changes)
+                _clear_checkpoint(cfg)
+                sys.exit(0)
+            # Only proceed with new samples downstream (don't re-overwrite raw file)
+            raw_samples = [DatasetSample.from_dict(d) for d in new_dicts]
+        elif force:
+            _echo("  [dim]--force: skipping cross-run dedup.[/dim]")
+
         _mark("generate")
+    _step_footer(t0)
+
+    # Guard: if somehow 0 samples reach here, fail loudly rather than silently
+    if not raw_samples:
+        _echo("[bold red]✗  0 samples after generation step — cannot continue.[/bold red]")
+        sys.exit(1)
 
     # 3. VALIDATE
-    _header("3 / 6  VALIDATION  (Rule + HITL Simulation)")
+    t0 = _step_header(3, 6, "VALIDATION  (Rule + HITL Simulation)")
     if "validate" in done:
         annotated_dicts = _load_jsonl(cfg.storage.annotated_path())
         annotated = []
@@ -388,9 +539,10 @@ def run_all(input_path: Optional[str], mock: bool, resume: bool, workers: int):
     else:
         annotated = step_validate(cfg, raw_samples)
         _mark("validate")
+    _step_footer(t0)
 
     # 4. FILTER
-    _header("4 / 6  FILTERING")
+    t0 = _step_header(4, 6, "FILTERING")
     if "filter" in done:
         filtered_dicts = _load_jsonl(cfg.storage.filtered_path())
         filtered = [AnnotatedSample.from_sample_dict(r) for r in filtered_dicts]
@@ -399,22 +551,59 @@ def run_all(input_path: Optional[str], mock: bool, resume: bool, workers: int):
     else:
         filtered, filter_report = step_filter(cfg, annotated)
         _mark("filter")
+    _step_footer(t0)
 
     # 5. EVALUATE
-    _header("5 / 6  EVALUATION  (Metrics)")
+    t0 = _step_header(5, 6, "EVALUATION  (Metrics)")
     step_evaluate(cfg, raw_samples, filtered, filter_report)
+    _step_footer(t0)
 
     # 6. ANALYZE
-    _header("6 / 6  ERROR ANALYSIS")
+    t0 = _step_header(6, 6, "ERROR ANALYSIS")
     step_analyze(cfg, annotated)
+    _step_footer(t0)
+
+    _clear_checkpoint(cfg)
+
+    # Persist fingerprints only after full successful run
+    if not force:
+        fp_store.save()
+
+    # Copy artifacts to versioned run directory
+    import shutil as _shutil
+    for src in [
+        cfg.storage.raw_path(),
+        cfg.storage.filtered_path(),
+        cfg.storage.annotated_path(),
+        cfg.storage.metrics_path(),
+        cfg.storage.error_path(),
+    ]:
+        if src.exists():
+            _shutil.copy2(src, run_dir / src.name)
+
+    # Update data/latest symlink
+    latest = cfg.storage.data_dir / "latest"
+    try:
+        if latest.is_symlink() or latest.exists():
+            latest.unlink()
+        latest.symlink_to(Path("runs") / cfg.run_id)
+    except OSError:
+        pass
+
+    elapsed_total = _time.monotonic() - pipeline_start
 
     _header("DONE")
-    _echo(f"\n  Raw dataset      → [cyan]{cfg.storage.raw_path()}[/cyan]")
+    _echo(
+        f"\n  [bold]Run ID[/bold]          {cfg.run_id}  [dim](git {cfg.git_sha})[/dim]\n"
+        f"  [bold]Total time[/bold]      {elapsed_total:.1f}s\n"
+    )
+    _echo(f"  Raw dataset      → [cyan]{cfg.storage.raw_path()}[/cyan]")
     _echo(f"  Annotated        → [cyan]{cfg.storage.annotated_path()}[/cyan]")
     _echo(f"  Filtered dataset → [cyan]{cfg.storage.filtered_path()}[/cyan]")
     _echo(f"  Metrics report   → [cyan]{cfg.storage.metrics_path()}[/cyan]")
-    _echo(f"  Error analysis   → [cyan]{cfg.storage.error_path()}[/cyan]\n")
-    _clear_checkpoint(cfg)
+    _echo(f"  Error analysis   → [cyan]{cfg.storage.error_path()}[/cyan]")
+    _echo(f"  Versioned run    → [cyan]{run_dir}[/cyan]")
+    _echo(f"  Latest symlink   → [cyan]{latest}[/cyan]\n")
 
 
 @cli.command("ingest")
@@ -437,7 +626,8 @@ def generate_cmd(input_path: Optional[str], mock: bool):
     cfg = _load_config(mock=mock)
     _header("GENERATION")
     ingestion_results = step_ingest(cfg, input_path)
-    step_generate(cfg, ingestion_results)
+    samples = step_generate(cfg, ingestion_results)
+    _save_jsonl([s.to_dict() for s in samples], cfg.storage.raw_path())
 
 
 @cli.command("validate")
@@ -778,6 +968,90 @@ def generate_agent_cmd(
               f"({snap.get('collapse_warning') or 'OK'})")
 
 
+@cli.command("list-runs")
+def list_runs_cmd():
+    """List all versioned pipeline runs with their manifests."""
+    cfg = Config()
+    runs_dir = cfg.storage.data_dir / "runs"
+    if not runs_dir.exists():
+        _echo("[yellow]No runs found.[/yellow]")
+        return
+    run_dirs = sorted(runs_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
+    if not run_dirs:
+        _echo("[yellow]No runs found.[/yellow]")
+        return
+    try:
+        from rich.console import Console
+        from rich.table import Table
+        console = Console()
+        table = Table(title="Pipeline Runs", show_header=True, header_style="bold cyan")
+        table.add_column("Run ID", style="cyan")
+        table.add_column("Git SHA")
+        table.add_column("Model")
+        table.add_column("Tasks")
+        table.add_column("Config Hash")
+        for d in run_dirs:
+            manifest_path = d / "manifest.json"
+            if manifest_path.exists():
+                m = json.loads(manifest_path.read_text(encoding="utf-8"))
+                table.add_row(
+                    m.get("run_id", d.name),
+                    m.get("git_sha", "?"),
+                    m.get("model", "?"),
+                    ", ".join(m.get("task_types", [])),
+                    m.get("config_hash", "?"),
+                )
+            else:
+                table.add_row(d.name, "?", "?", "?", "?")
+        console.print(table)
+    except ImportError:
+        for d in run_dirs:
+            _echo(f"  {d.name}")
+
+
+@cli.command("export")
+@click.option(
+    "--dataset",
+    "dataset_path",
+    default=None,
+    help="Path to the filtered JSONL to export. Default: data/filtered_dataset.jsonl",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["argilla", "labelstudio"], case_sensitive=False),
+    default="argilla",
+    show_default=True,
+    help="Export format.",
+)
+@click.option(
+    "--output",
+    "output_path",
+    default=None,
+    help="Output file path. Default: data/export_<format>.jsonl",
+)
+def export_cmd(dataset_path: Optional[str], fmt: str, output_path: Optional[str]):
+    """Export the dataset to Argilla or Label Studio annotation format."""
+    from evaluation.exporter import export_argilla, export_labelstudio
+
+    cfg = Config()
+    src = Path(dataset_path) if dataset_path else cfg.storage.filtered_path()
+    if not src.exists():
+        _echo(f"[red]Dataset not found: {src}[/red]")
+        sys.exit(1)
+
+    records = _load_jsonl(src)
+    out = Path(output_path) if output_path else cfg.storage.data_dir / f"export_{fmt}.jsonl"
+
+    if fmt == "argilla":
+        exported = export_argilla(records)
+    else:
+        exported = export_labelstudio(records)
+
+    _save_jsonl(exported, out)
+    _echo(f"  Exported {len(exported)} records ({fmt}) → [cyan]{out}[/cyan]")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Inline demo text (fallback when no sample files exist)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -812,6 +1086,93 @@ superposition of the 0 and 1 states simultaneously, unlike a classical bit.
 Quantum computers are expected to solve certain classes of problems—such as integer
 factorisation and database searching—exponentially faster than classical computers.
 """
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Health check command
+# ─────────────────────────────────────────────────────────────────────────────
+
+@cli.command("health-check")
+@click.option("--mock/--no-mock", default=False, show_default=True,
+              help="Skip LLM connectivity check (useful in CI with no Ollama server).")
+def health_check_cmd(mock: bool):
+    """Check Ollama connectivity, disk space, config validity, and Python deps."""
+    import shutil as _shutil
+    from rich.table import Table as _Table
+
+    cfg = _load_config(mock=mock, skip_preflight=True)
+
+    checks: list[tuple[str, bool, str]] = []  # (name, passed, detail)
+
+    # 1. Config validity
+    try:
+        cfg.validate()
+        checks.append(("Config valid", True, f"run_id={cfg.run_id}"))
+    except ValueError as exc:
+        checks.append(("Config valid", False, str(exc).splitlines()[0]))
+
+    # 2. Disk space (≥ 500 MB free)
+    try:
+        free_bytes = _shutil.disk_usage(cfg.storage.data_dir).free
+        free_mb = free_bytes / (1024 ** 2)
+        ok = free_mb >= 500
+        checks.append((
+            "Disk space (≥500 MB)",
+            ok,
+            f"{free_mb:.0f} MB free in {cfg.storage.data_dir}",
+        ))
+    except OSError as exc:
+        checks.append(("Disk space (≥500 MB)", False, str(exc)))
+
+    # 3. Data dir writable
+    try:
+        test = cfg.storage.data_dir / ".hc_write_test"
+        test.touch()
+        test.unlink()
+        checks.append(("Data dir writable", True, str(cfg.storage.data_dir)))
+    except OSError as exc:
+        checks.append(("Data dir writable", False, str(exc)))
+
+    # 4. LLM reachability (skip for --mock)
+    if mock:
+        checks.append(("LLM reachable", True, "Skipped (--mock mode)"))
+    else:
+        from generation.llm_client import OllamaClient
+        client = OllamaClient(model=cfg.llm.model, base_url=cfg.llm.base_url)
+        try:
+            client.health_check()
+            checks.append(("LLM reachable", True, f"{cfg.llm.model} @ {cfg.llm.base_url}"))
+        except RuntimeError as exc:
+            checks.append(("LLM reachable", False, str(exc).splitlines()[0]))
+
+    # 5. Required Python packages
+    for pkg in ("click", "rich", "ollama"):
+        try:
+            __import__(pkg)
+            checks.append((f"Package: {pkg}", True, ""))
+        except ImportError:
+            checks.append((f"Package: {pkg}", False, "not installed — run: pip install " + pkg))
+
+    # Render results table
+    tbl = _Table(title="Health Check", show_header=True, header_style="bold")
+    tbl.add_column("Check", style="bold")
+    tbl.add_column("Status", justify="center")
+    tbl.add_column("Detail")
+    all_ok = True
+    for name, passed, detail in checks:
+        status = "[bold green]✓ PASS[/bold green]" if passed else "[bold red]✗ FAIL[/bold red]"
+        if not passed:
+            all_ok = False
+        tbl.add_row(name, status, detail)
+
+    from rich.console import Console as _Console
+    _Console(highlight=False).print(tbl)
+
+    if all_ok:
+        _echo("\n[bold green]All checks passed — pipeline is ready.[/bold green]\n")
+    else:
+        _echo("\n[bold red]One or more checks failed — fix the issues above before running.[/bold red]\n")
+        sys.exit(1)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

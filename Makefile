@@ -1,4 +1,4 @@
-.PHONY: help test lint format typecheck check run-mock run docker-build docker-run clean
+.PHONY: help test lint format typecheck check run-mock run docker-build docker-run clean push-hub export-argilla export-labelstudio list-runs
 
 PYTHON     := python3
 PY_SRC     := dataset_builder
@@ -79,3 +79,30 @@ clean: ## Remove build artefacts, caches, and generated data
 
 install-dev: ## Install project + dev dependencies in the current environment
 	$(PYTHON) -m pip install -e ".[dev]"
+
+## ── HuggingFace Hub ──────────────────────────────────────────────────────────
+
+# Set HF_DATASET to your Hub repo, e.g. make push-hub HF_DATASET=myorg/my-dataset
+HF_DATASET ?= my-org/synth-dataset
+
+push-hub: ## Upload filtered dataset to HuggingFace Hub (requires huggingface-cli)
+	@if [ -z "$$HF_TOKEN" ] && ! huggingface-cli whoami >/dev/null 2>&1; then \
+		echo "ERROR: Not logged in. Run 'huggingface-cli login' or set HF_TOKEN."; exit 1; \
+	fi
+	@if [ ! -f "$(PY_SRC)/data/filtered_dataset.jsonl" ]; then \
+		echo "ERROR: $(PY_SRC)/data/filtered_dataset.jsonl not found. Run 'make run-mock' first."; exit 1; \
+	fi
+	huggingface-cli upload $(HF_DATASET) \
+		$(PY_SRC)/data/filtered_dataset.jsonl \
+		--repo-type dataset \
+		--commit-message "Upload filtered dataset (synthDataLab automated push)"
+	@echo "Dataset pushed to https://huggingface.co/datasets/$(HF_DATASET)"
+
+export-argilla: ## Export filtered dataset to Argilla format (data/export_argilla.jsonl)
+	cd $(PY_SRC) && $(PYTHON) main.py export --format argilla
+
+export-labelstudio: ## Export filtered dataset to Label Studio format (data/export_labelstudio.jsonl)
+	cd $(PY_SRC) && $(PYTHON) main.py export --format labelstudio
+
+list-runs: ## List all versioned pipeline runs
+	cd $(PY_SRC) && $(PYTHON) main.py list-runs
