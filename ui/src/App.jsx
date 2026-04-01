@@ -143,6 +143,17 @@ export default function App() {
         </div>
       </div>
 
+      <section className="overview-panel">
+        <h2>What this dashboard does</h2>
+        <p className="overview-lead">synthDataLab is a production-grade synthetic dataset pipeline manager. You can create runs, monitor live status, inspect logs, and cancel in-progress jobs.</p>
+        <ul>
+          <li><strong>Create runs</strong> from text or input files, selecting model and filtering parameters.</li>
+          <li><strong>Track progress</strong> through pipeline stages: ingest → generate → validate → filter → evaluate.</li>
+          <li><strong>View results</strong> details and logs for each run, with error and success insights.</li>
+          <li><strong>Cancel jobs</strong> that are running, with immediate state feedback.</li>
+        </ul>
+      </section>
+
       <div className="dashboard-grid">
         <section className="panel panel-left">
           <h2>Create Run</h2>
