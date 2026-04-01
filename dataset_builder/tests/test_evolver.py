@@ -5,8 +5,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
-from generation.evolver import PromptEvolver, EvolveConfig, EvolvedPrompt
 
+from generation.evolver import EvolveConfig, EvolvedPrompt, PromptEvolver
 
 SEEDS = [
     "What is machine learning?",

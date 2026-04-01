@@ -45,12 +45,11 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, List
+from typing import Any
 
 from schema.dataset_schema import validate_sample
 from validation.annotation import (
     AnnotatedSample,
-    AnnotationLabel,
     RejectionCode,
 )
 
@@ -78,8 +77,8 @@ class RuleValidator:
     # ─────────────────────────────────────────────────────────────────────────
 
     def validate_batch(
-        self, samples: List[Dict[str, Any]]
-    ) -> List[AnnotatedSample]:
+        self, samples: list[dict[str, Any]]
+    ) -> list[AnnotatedSample]:
         """Validate every sample and return annotated results."""
         results = [self.validate_one(s) for s in samples]
         accepted = sum(1 for r in results if r.is_accepted)
@@ -91,7 +90,7 @@ class RuleValidator:
         )
         return results
 
-    def validate_one(self, sample: Dict[str, Any]) -> AnnotatedSample:
+    def validate_one(self, sample: dict[str, Any]) -> AnnotatedSample:
         """Apply all rule checks to a single sample dict."""
         annotated = AnnotatedSample.from_sample_dict(sample)
 

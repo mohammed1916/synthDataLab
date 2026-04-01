@@ -7,8 +7,6 @@ processed without exceeding LLM context windows.
 from __future__ import annotations
 
 import re
-from typing import List
-
 
 # Characters per chunk (approx — actual split is on sentence boundary)
 DEFAULT_CHUNK_SIZE = 1500
@@ -19,7 +17,7 @@ def ingest_text(
     raw_text: str,
     source_name: str = "text_input",
     chunk_size: int = DEFAULT_CHUNK_SIZE,
-) -> List[dict]:
+) -> list[dict]:
     """
     Normalize a raw text string into one or more ingestion records.
 
@@ -76,7 +74,7 @@ def _clean_text(text: str) -> str:
     return text.strip()
 
 
-def _split_into_chunks(text: str, max_chars: int) -> List[str]:
+def _split_into_chunks(text: str, max_chars: int) -> list[str]:
     """
     Split text into sentence-boundary-aware chunks of ≤ max_chars characters.
     Uses a simple overlapping window so context is not lost at boundaries.
@@ -86,8 +84,8 @@ def _split_into_chunks(text: str, max_chars: int) -> List[str]:
 
     # Split on sentence endings
     sentences = re.split(r"(?<=[.!?])\s+", text)
-    chunks: List[str] = []
-    current: List[str] = []
+    chunks: list[str] = []
+    current: list[str] = []
     current_len = 0
 
     for sentence in sentences:

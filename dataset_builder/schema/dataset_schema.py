@@ -22,9 +22,9 @@ from __future__ import annotations
 
 import json
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import jsonschema
 
@@ -32,7 +32,7 @@ import jsonschema
 # JSON Schema
 # ─────────────────────────────────────────────────────────────────────────────
 
-DATASET_SCHEMA: Dict[str, Any] = {
+DATASET_SCHEMA: dict[str, Any] = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "DatasetSample",
     "type": "object",
@@ -66,7 +66,7 @@ DATASET_SCHEMA: Dict[str, Any] = {
 }
 
 # Task-type-specific output sub-schemas
-_QA_OUTPUT_SCHEMA: Dict[str, Any] = {
+_QA_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["question", "answer", "evidence"],
     "properties": {
@@ -76,7 +76,7 @@ _QA_OUTPUT_SCHEMA: Dict[str, Any] = {
     },
 }
 
-_EXTRACTION_OUTPUT_SCHEMA: Dict[str, Any] = {
+_EXTRACTION_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["entities", "relations", "key_facts"],
     "properties": {
@@ -101,7 +101,7 @@ _EXTRACTION_OUTPUT_SCHEMA: Dict[str, Any] = {
     },
 }
 
-_REASONING_OUTPUT_SCHEMA: Dict[str, Any] = {
+_REASONING_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["reasoning_steps", "conclusion", "confidence_explanation"],
     "properties": {
@@ -115,7 +115,7 @@ _REASONING_OUTPUT_SCHEMA: Dict[str, Any] = {
     },
 }
 
-_REASONING_TRACE_OUTPUT_SCHEMA: Dict[str, Any] = {
+_REASONING_TRACE_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["think", "answer", "verification", "confidence"],
     "properties": {
@@ -126,7 +126,7 @@ _REASONING_TRACE_OUTPUT_SCHEMA: Dict[str, Any] = {
     },
 }
 
-_PREFERENCE_OUTPUT_SCHEMA: Dict[str, Any] = {
+_PREFERENCE_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["prompt", "chosen", "rejected", "preference_margin"],
     "properties": {
@@ -151,7 +151,7 @@ _PREFERENCE_OUTPUT_SCHEMA: Dict[str, Any] = {
     },
 }
 
-TASK_OUTPUT_SCHEMAS: Dict[str, Dict] = {
+TASK_OUTPUT_SCHEMAS: dict[str, dict] = {
     "qa": _QA_OUTPUT_SCHEMA,
     "extraction": _EXTRACTION_OUTPUT_SCHEMA,
     "reasoning": _REASONING_OUTPUT_SCHEMA,
@@ -179,7 +179,7 @@ class SampleMetadata:
         confidence: float,
         model: str,
         chunk_index: int = 0,
-    ) -> "SampleMetadata":
+    ) -> SampleMetadata:
         return cls(
             source=source,
             confidence=confidence,
@@ -188,7 +188,7 @@ class SampleMetadata:
             chunk_index=chunk_index,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -205,8 +205,8 @@ class DatasetSample:
     input: str
     task_type: str
     instruction: str
-    output: Dict[str, Any]
-    metadata: Dict[str, Any]
+    output: dict[str, Any]
+    metadata: dict[str, Any]
 
     # ── Constructors ──────────────────────────────────────────────────────────
 
@@ -216,12 +216,12 @@ class DatasetSample:
         task_type: str,
         input_text: str,
         instruction: str,
-        output: Dict[str, Any],
+        output: dict[str, Any],
         source: str,
         confidence: float,
         model: str,
         chunk_index: int = 0,
-    ) -> "DatasetSample":
+    ) -> DatasetSample:
         """Factory — generates a unique ID and current timestamp automatically."""
         meta = SampleMetadata.now(
             source=source,
@@ -240,7 +240,7 @@ class DatasetSample:
 
     # ── Serialisation ─────────────────────────────────────────────────────────
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "input": self.input,
@@ -251,7 +251,7 @@ class DatasetSample:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "DatasetSample":
+    def from_dict(cls, d: dict[str, Any]) -> DatasetSample:
         return cls(
             id=d["id"],
             input=d["input"],
@@ -269,14 +269,14 @@ class DatasetSample:
 # Validation helper
 # ─────────────────────────────────────────────────────────────────────────────
 
-def validate_sample(sample: Dict[str, Any]) -> Tuple[bool, List[str]]:
+def validate_sample(sample: dict[str, Any]) -> tuple[bool, list[str]]:
     """
     Validate a sample dict against the top-level and task-specific schemas.
 
     Returns:
         (is_valid, list_of_error_messages)
     """
-    errors: List[str] = []
+    errors: list[str] = []
 
     # Top-level schema
     validator = jsonschema.Draft7Validator(DATASET_SCHEMA)

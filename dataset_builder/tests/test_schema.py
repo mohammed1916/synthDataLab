@@ -5,8 +5,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
-from schema.dataset_schema import validate_sample, DatasetSample, TASK_OUTPUT_SCHEMAS
 
+from schema.dataset_schema import TASK_OUTPUT_SCHEMAS, DatasetSample, validate_sample
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

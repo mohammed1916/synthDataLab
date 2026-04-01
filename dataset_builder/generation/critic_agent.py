@@ -27,13 +27,13 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import asdict, dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Required output keys per task type (mirrors evaluation/metrics.py)
-_REQUIRED_KEYS: Dict[str, List[str]] = {
+_REQUIRED_KEYS: dict[str, list[str]] = {
     "qa": ["question", "answer", "evidence"],
     "extraction": ["entities", "relations", "key_facts"],
     "reasoning": ["reasoning_steps", "conclusion", "confidence_explanation"],
@@ -81,7 +81,7 @@ class CriticScore:
             return "REVIEW"
         return "FAIL"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["composite"] = round(self.composite, 4)
         d["verdict"] = self.verdict
@@ -118,7 +118,7 @@ class CriticAgent:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
-    def score(self, sample: Dict[str, Any]) -> CriticScore:
+    def score(self, sample: dict[str, Any]) -> CriticScore:
         """
         Score a single sample dict and return a ``CriticScore``.
 
@@ -143,13 +143,13 @@ class CriticAgent:
             fluency=self._score_fluency(output),
         )
 
-    def score_batch(self, samples: List[Dict[str, Any]]) -> List[CriticScore]:
+    def score_batch(self, samples: list[dict[str, Any]]) -> list[CriticScore]:
         """Score a list of samples, returning one CriticScore per sample."""
         return [self.score(s) for s in samples]
 
     def score_with_llm(
         self,
-        sample: Dict[str, Any],
+        sample: dict[str, Any],
         llm_client: Any,
     ) -> CriticScore:
         """
@@ -210,7 +210,7 @@ class CriticAgent:
 
     # ── Axis scorers ──────────────────────────────────────────────────────────
 
-    def _score_relevance(self, input_text: str, output: Dict[str, Any]) -> float:
+    def _score_relevance(self, input_text: str, output: dict[str, Any]) -> float:
         """
         Jaccard word-overlap between *all* output string values and the input.
         A score of 0 means the output shares nothing with the source passage.
@@ -231,7 +231,7 @@ class CriticAgent:
         # Jaccard tends to be low for genuine summaries; rescale [0, 0.5] → [0, 1]
         return min(1.0, raw_jaccard * 2.5)
 
-    def _score_coherence(self, task_type: str, output: Dict[str, Any]) -> float:
+    def _score_coherence(self, task_type: str, output: dict[str, Any]) -> float:
         """
         Fraction of required output keys that are present and non-trivial.
         Bonus for extra non-empty optional keys.
@@ -253,7 +253,7 @@ class CriticAgent:
         return min(1.0, base_score + bonus)
 
     def _score_groundedness(
-        self, task_type: str, input_text: str, output: Dict[str, Any]
+        self, task_type: str, input_text: str, output: dict[str, Any]
     ) -> float:
         """
         Check whether the key evidence / reasoning field shares substantial
@@ -272,7 +272,7 @@ class CriticAgent:
             "preference": ["chosen"],
         }
         keys = evidence_keys.get(task_type, list(output.keys()))
-        evidence_parts: List[str] = []
+        evidence_parts: list[str] = []
         for k in keys:
             val = output.get(k, "")
             if isinstance(val, list):
@@ -288,7 +288,7 @@ class CriticAgent:
         overlap = len(input_words & ev_words) / len(ev_words)
         return min(1.0, overlap * 2.0)   # rescale: 50 % overlap → score 1.0
 
-    def _score_fluency(self, output: Dict[str, Any]) -> float:
+    def _score_fluency(self, output: dict[str, Any]) -> float:
         """
         Surface-form quality check:
           - Penalise outputs with error markers (_raw_response, _parse_error …)
@@ -306,7 +306,7 @@ class CriticAgent:
             return 0.0
 
         # Check individual field lengths
-        field_scores: List[float] = []
+        field_scores: list[float] = []
         for v in output.values():
             text = _stringify(v)
             if not text:
@@ -336,9 +336,9 @@ def _word_set(text: str) -> set:
     }
 
 
-def _flatten_output(output: Dict[str, Any]) -> str:
+def _flatten_output(output: dict[str, Any]) -> str:
     """Join all string values (recursively) in an output dict."""
-    parts: List[str] = []
+    parts: list[str] = []
     for v in output.values():
         parts.append(_stringify(v))
     return " ".join(parts)

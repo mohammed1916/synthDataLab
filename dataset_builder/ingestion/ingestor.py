@@ -10,10 +10,10 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
-from .text_ingestor import ingest_text
 from .image_ingestor import ingest_image
+from .text_ingestor import ingest_text
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +34,9 @@ class IngestionResult:
 
     source_type: str
     content: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "source_type": self.source_type,
             "content": self.content,
@@ -44,7 +44,7 @@ class IngestionResult:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "IngestionResult":
+    def from_dict(cls, d: dict[str, Any]) -> IngestionResult:
         return cls(
             source_type=d["source_type"],
             content=d["content"],
@@ -67,7 +67,7 @@ class Ingestor:
 
     def ingest_text(
         self, raw_text: str, source_name: str = "inline_text"
-    ) -> List[IngestionResult]:
+    ) -> list[IngestionResult]:
         """Ingest a raw text string."""
         records = ingest_text(raw_text, source_name=source_name)
         results = [IngestionResult(**r) for r in records]
@@ -78,7 +78,7 @@ class Ingestor:
         )
         return results
 
-    def ingest_file(self, file_path: str) -> List[IngestionResult]:
+    def ingest_file(self, file_path: str) -> list[IngestionResult]:
         """Ingest a plain-text file or an image file."""
         path = Path(file_path)
         if not path.exists():
@@ -103,14 +103,14 @@ class Ingestor:
         logger.info("Ingested '%s' → %d chunk(s)", path.name, len(results))
         return results
 
-    def ingest_image(self, image_path: str) -> List[IngestionResult]:
+    def ingest_image(self, image_path: str) -> list[IngestionResult]:
         """Ingest an image file (OCR)."""
         raw_records = ingest_image(image_path)
         results = [IngestionResult(**r) for r in raw_records]
         logger.info("Ingested image '%s'", Path(image_path).name)
         return results
 
-    def ingest_json(self, json_path: str) -> List[IngestionResult]:
+    def ingest_json(self, json_path: str) -> list[IngestionResult]:
         """
         Ingest a JSON file containing an array of article objects.
 
@@ -129,7 +129,7 @@ class Ingestor:
             raise ValueError(
                 f"JSON file too large ({size / 1_048_576:.1f} MB > 50 MB limit): {json_path}"
             )
-        articles: List[dict] = json.loads(
+        articles: list[dict] = json.loads(
             path.read_text(encoding="utf-8", errors="replace")
         )
         if not isinstance(articles, list):
@@ -137,7 +137,7 @@ class Ingestor:
                 f"JSON file must contain a list of article objects: {json_path}"
             )
 
-        results: List[IngestionResult] = []
+        results: list[IngestionResult] = []
         for article in articles:
             content = article.get("content", "")
             title = article.get("title", "Untitled")
@@ -157,9 +157,9 @@ class Ingestor:
         )
         return results
 
-    def ingest_batch(self, file_paths: List[str]) -> List[IngestionResult]:
+    def ingest_batch(self, file_paths: list[str]) -> list[IngestionResult]:
         """Convenience: ingest a list of file paths in one call."""
-        results: List[IngestionResult] = []
+        results: list[IngestionResult] = []
         for fp in file_paths:
             results.extend(self.ingest_file(fp))
         return results

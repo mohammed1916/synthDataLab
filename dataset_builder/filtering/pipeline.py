@@ -17,11 +17,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from config import FilteringConfig
-from validation.annotation import AnnotatedSample, AnnotationLabel, RejectionCode
 from filtering.deduplicator import Deduplicator
+from validation.annotation import AnnotatedSample, AnnotationLabel, RejectionCode
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class StageStats:
     input_count: int
     output_count: int
     removed_count: int
-    removal_reasons: List[str] = field(default_factory=list)
+    removal_reasons: list[str] = field(default_factory=list)
 
     @property
     def removal_rate(self) -> float:
@@ -47,7 +47,7 @@ class FilteringReport:
 
     total_input: int = 0
     total_output: int = 0
-    stages: List[StageStats] = field(default_factory=list)
+    stages: list[StageStats] = field(default_factory=list)
 
     @property
     def total_removed(self) -> int:
@@ -59,7 +59,7 @@ class FilteringReport:
             return 0.0
         return self.total_output / self.total_input
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_input": self.total_input,
             "total_output": self.total_output,
@@ -96,8 +96,8 @@ class FilteringPipeline:
     # ─────────────────────────────────────────────────────────────────────────
 
     def run(
-        self, annotated: List[AnnotatedSample]
-    ) -> Tuple[List[AnnotatedSample], FilteringReport]:
+        self, annotated: list[AnnotatedSample]
+    ) -> tuple[list[AnnotatedSample], FilteringReport]:
         """
         Run the full pipeline.
 
@@ -143,10 +143,10 @@ class FilteringPipeline:
 
     @staticmethod
     def _filter_schema_violations(
-        samples: List[AnnotatedSample],
-    ) -> Tuple[List[AnnotatedSample], StageStats]:
+        samples: list[AnnotatedSample],
+    ) -> tuple[list[AnnotatedSample], StageStats]:
         kept = []
-        reasons: List[str] = []
+        reasons: list[str] = []
         for s in samples:
             has_schema_error = any(
                 r.code == RejectionCode.SCHEMA_INVALID
@@ -169,8 +169,8 @@ class FilteringPipeline:
         return kept, stat
 
     def _filter_duplicates(
-        self, samples: List[AnnotatedSample]
-    ) -> Tuple[List[AnnotatedSample], StageStats]:
+        self, samples: list[AnnotatedSample]
+    ) -> tuple[list[AnnotatedSample], StageStats]:
         raw_dicts = [s.sample for s in samples]
         unique_dicts, removed_dicts = self._dedup.deduplicate(raw_dicts)
 
@@ -191,8 +191,8 @@ class FilteringPipeline:
         return kept, stat
 
     def _filter_low_confidence(
-        self, samples: List[AnnotatedSample]
-    ) -> Tuple[List[AnnotatedSample], StageStats]:
+        self, samples: list[AnnotatedSample]
+    ) -> tuple[list[AnnotatedSample], StageStats]:
         kept, reasons = [], []
         for s in samples:
             conf = float(s.sample.get("metadata", {}).get("confidence", 1))
@@ -213,8 +213,8 @@ class FilteringPipeline:
         return kept, stat
 
     def _filter_output_length(
-        self, samples: List[AnnotatedSample]
-    ) -> Tuple[List[AnnotatedSample], StageStats]:
+        self, samples: list[AnnotatedSample]
+    ) -> tuple[list[AnnotatedSample], StageStats]:
         kept, reasons = [], []
         for s in samples:
             output_str = str(s.sample.get("output", ""))
@@ -241,8 +241,8 @@ class FilteringPipeline:
 
     @staticmethod
     def _filter_non_accepted(
-        samples: List[AnnotatedSample],
-    ) -> Tuple[List[AnnotatedSample], StageStats]:
+        samples: list[AnnotatedSample],
+    ) -> tuple[list[AnnotatedSample], StageStats]:
         kept = [s for s in samples if s.label == AnnotationLabel.ACCEPT]
         removed = len(samples) - len(kept)
         reasons = [

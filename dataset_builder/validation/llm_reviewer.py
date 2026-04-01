@@ -14,8 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
-import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from validation.annotation import AnnotatedSample, AnnotationLabel, RejectionCode
 
@@ -49,18 +48,18 @@ class LLMReviewer:
     def __init__(
         self,
         llm_client=None,
-        run_on: Optional[List[str]] = None,
+        run_on: list[str] | None = None,
     ):
         self._client = llm_client
-        self._run_on: List[str] = run_on or [AnnotationLabel.FIX_REQUIRED.value]
+        self._run_on: list[str] = run_on or [AnnotationLabel.FIX_REQUIRED.value]
 
     # ─────────────────────────────────────────────────────────────────────────
     # Public API
     # ─────────────────────────────────────────────────────────────────────────
 
     def review_batch(
-        self, annotated_samples: List[AnnotatedSample]
-    ) -> List[AnnotatedSample]:
+        self, annotated_samples: list[AnnotatedSample]
+    ) -> list[AnnotatedSample]:
         """Run the reviewer on samples whose current label is in self._run_on."""
         reviewed = 0
         for ann in annotated_samples:
@@ -106,7 +105,7 @@ class LLMReviewer:
             if not hard_fail:
                 ann.label = AnnotationLabel.ACCEPT
 
-    def _call_reviewer(self, sample: Dict[str, Any]) -> tuple[str, List[str], str]:
+    def _call_reviewer(self, sample: dict[str, Any]) -> tuple[str, list[str], str]:
         """
         Return (verdict, issues, notes) for a sample.
 
@@ -138,7 +137,7 @@ class LLMReviewer:
             return "FIX_REQUIRED", [], f"reviewer_error: {exc}"
 
     @staticmethod
-    def _mock_review(sample: Dict[str, Any]) -> tuple[str, List[str], str]:
+    def _mock_review(sample: dict[str, Any]) -> tuple[str, list[str], str]:
         """
         Heuristic mock reviewer logic.
 

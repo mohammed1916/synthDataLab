@@ -1,7 +1,7 @@
 """generation — Synthetic dataset generation layer."""
+from .evolver import EvolveConfig, EvolvedPrompt, PromptEvolver
 from .generator import DatasetGenerator
-from .llm_client import OllamaClient, MockLLMClient
-from .evolver import PromptEvolver, EvolveConfig, EvolvedPrompt
+from .llm_client import MockLLMClient, OllamaClient
 
 __all__ = [
     "DatasetGenerator",

@@ -11,7 +11,6 @@ import subprocess
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
 
 # Absolute path to the project root (this file's directory)
 BASE_DIR: Path = Path(__file__).parent
@@ -53,7 +52,7 @@ class GenerationConfig:
     """Controls how synthetic samples are produced."""
 
     samples_per_input: int = 3          # samples per ingested chunk
-    task_types: List[str] = field(
+    task_types: list[str] = field(
         default_factory=lambda: ["qa", "extraction", "reasoning"]
     )
     batch_size: int = 10                # LLM call batch size
@@ -66,7 +65,7 @@ class EvolutionConfig:
 
     enabled: bool = False              # off by default; enable with --evolve flag
     n_rounds: int = 2                  # evolution rounds
-    operations: List[str] = field(
+    operations: list[str] = field(
         default_factory=lambda: [
             "add_constraints",
             "deepen",

@@ -24,12 +24,11 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Deque, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 # Risk level → Rich colour tag
-_RISK_COLOURS: Dict[str, str] = {
+_RISK_COLOURS: dict[str, str] = {
     "LOW": "green",
     "MEDIUM": "yellow",
     "HIGH": "red",
@@ -68,9 +67,9 @@ class LiveSnapshot:
     rejected: int = 0
     fix_required: int = 0
     errors: int = 0
-    task_counts: Dict[str, int] = field(default_factory=dict)
-    confidence_scores: List[float] = field(default_factory=list)
-    critic_scores: List[float] = field(default_factory=list)
+    task_counts: dict[str, int] = field(default_factory=dict)
+    confidence_scores: list[float] = field(default_factory=list)
+    critic_scores: list[float] = field(default_factory=list)
     collapse_risk_label: str = "UNKNOWN"
     collapse_risk_score: float = 0.0
     start_time: float = field(default_factory=time.monotonic)
@@ -87,7 +86,7 @@ class LiveSnapshot:
         return self.generated / e if e > 0 else 0.0
 
     @property
-    def eta_seconds(self) -> Optional[float]:
+    def eta_seconds(self) -> float | None:
         remaining = self.total - self.generated
         thr = self.throughput
         return remaining / thr if (thr > 0 and remaining > 0) else None
@@ -142,16 +141,16 @@ class LiveMetricsTracker:
 
         self._lock = threading.Lock()
         self._snapshot = LiveSnapshot(total=total, start_time=time.monotonic())
-        self._recent: Deque[SampleEvent] = deque(maxlen=self._RECENT_MAX)
+        self._recent: deque[SampleEvent] = deque(maxlen=self._RECENT_MAX)
         self._live = None    # Rich Live instance, set in __enter__
 
     # ── Context-manager interface ─────────────────────────────────────────────
 
-    def __enter__(self) -> "LiveMetricsTracker":
+    def __enter__(self) -> LiveMetricsTracker:
         if self.show_dashboard:
             try:
-                from rich.live import Live
                 from rich.console import Console
+                from rich.live import Live
 
                 self._live = Live(
                     self._render(),
@@ -239,8 +238,8 @@ class LiveMetricsTracker:
         snap = self.get_snapshot()
         try:
             from rich.console import Console
-            from rich.table import Table
             from rich.rule import Rule
+            from rich.table import Table
 
             console = Console()
             console.print(Rule("[bold cyan]Generation Complete — Driver Summary[/bold cyan]"))
@@ -384,7 +383,7 @@ class LiveMetricsTracker:
             # ── Recent events ─────────────────────────────────────────────────
             with self._lock:
                 recent = list(self._recent)
-            event_lines: List[str] = []
+            event_lines: list[str] = []
             for ev in reversed(recent):
                 icon = {
                     "ACCEPT": "[green]✓[/green]",

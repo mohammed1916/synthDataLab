@@ -25,12 +25,11 @@ from __future__ import annotations
 import json
 import re
 from collections import defaultdict
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from validation.annotation import AnnotatedSample, AnnotationLabel, RejectionCode
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Data structures
@@ -44,11 +43,11 @@ class ErrorExample:
     task_type: str
     error_code: str
     error_message: str
-    before: Dict[str, Any]     # original output
-    after: Dict[str, Any]      # auto-corrected output (if applicable)
+    before: dict[str, Any]     # original output
+    after: dict[str, Any]      # auto-corrected output (if applicable)
     correction_applied: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -58,13 +57,13 @@ class ErrorReport:
 
     total_rejected: int = 0
     total_fix_required: int = 0
-    error_counts: Dict[str, int] = field(default_factory=dict)
-    error_rates: Dict[str, float] = field(default_factory=dict)
-    per_task_breakdown: Dict[str, Dict[str, int]] = field(default_factory=dict)
-    examples: List[ErrorExample] = field(default_factory=list)
+    error_counts: dict[str, int] = field(default_factory=dict)
+    error_rates: dict[str, float] = field(default_factory=dict)
+    per_task_breakdown: dict[str, dict[str, int]] = field(default_factory=dict)
+    examples: list[ErrorExample] = field(default_factory=list)
     auto_corrections_applied: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_rejected": self.total_rejected,
             "total_fix_required": self.total_fix_required,
@@ -112,9 +111,9 @@ class ErrorAnalyzer:
             return report
 
         # ── Count error codes ─────────────────────────────────────────────────
-        code_counts: Dict[str, int] = defaultdict(int)
-        task_breakdown: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
-        examples_per_code: Dict[str, int] = defaultdict(int)
+        code_counts: dict[str, int] = defaultdict(int)
+        task_breakdown: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        examples_per_code: dict[str, int] = defaultdict(int)
 
         for ann in non_accepted:
             task_type = ann.sample.get("task_type", "unknown")
@@ -234,14 +233,14 @@ def _auto_correct(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _rich_summary(report: ErrorReport) -> None:
-    from rich.table import Table
-    from rich.console import Console
     from rich import box
+    from rich.console import Console
+    from rich.table import Table
 
     console = Console()
     total = report.total_rejected + report.total_fix_required
 
-    console.print(f"\n[bold cyan]Error Analysis Summary[/bold cyan]")
+    console.print("\n[bold cyan]Error Analysis Summary[/bold cyan]")
     console.print(
         f"  Rejected: [red]{report.total_rejected}[/red]  |  "
         f"Fix Required: [yellow]{report.total_fix_required}[/yellow]  |  "

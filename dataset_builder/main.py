@@ -32,7 +32,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import click
 
@@ -41,19 +41,19 @@ _PROJECT_ROOT = Path(__file__).parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from config import Config, DEFAULT_CONFIG
-from ingestion.ingestor import Ingestor, IngestionResult
-from generation.generator import DatasetGenerator
-from generation.evolver import PromptEvolver, EvolveConfig
-from schema.dataset_schema import DatasetSample
-from validation.rule_validator import RuleValidator, annotation_guidelines
-from validation.llm_reviewer import LLMReviewer
-from validation.annotation import AnnotatedSample, AnnotationLabel
-from filtering.pipeline import FilteringPipeline
-from filtering.fingerprint_store import FingerprintStore
+from analysis.error_analyzer import ErrorAnalyzer
+from config import Config
 from evaluation.metrics import compute_metrics
 from evaluation.reporter import MetricsReporter
-from analysis.error_analyzer import ErrorAnalyzer
+from filtering.fingerprint_store import FingerprintStore
+from filtering.pipeline import FilteringPipeline
+from generation.evolver import EvolveConfig, PromptEvolver
+from generation.generator import DatasetGenerator
+from ingestion.ingestor import IngestionResult, Ingestor
+from schema.dataset_schema import DatasetSample
+from validation.annotation import AnnotatedSample, AnnotationLabel
+from validation.llm_reviewer import LLMReviewer
+from validation.rule_validator import RuleValidator, annotation_guidelines
 
 # ── Logging setup ─────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -88,14 +88,14 @@ def _checkpoint_path(cfg: Config) -> Path:
     return cfg.storage.data_dir / "logs" / "checkpoint.json"
 
 
-def _load_checkpoint(cfg: Config) -> Dict[str, Any]:
+def _load_checkpoint(cfg: Config) -> dict[str, Any]:
     p = _checkpoint_path(cfg)
     if p.exists():
         return json.loads(p.read_text(encoding="utf-8"))
     return {"completed": [], "session_id": None}
 
 
-def _save_checkpoint(cfg: Config, checkpoint: Dict[str, Any]) -> None:
+def _save_checkpoint(cfg: Config, checkpoint: dict[str, Any]) -> None:
     p = _checkpoint_path(cfg)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(checkpoint, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -141,7 +141,7 @@ def _load_config(mock: bool = False, skip_preflight: bool = False) -> Config:
     return cfg
 
 
-def _save_jsonl(records: List[Dict[str, Any]], path: Path) -> None:
+def _save_jsonl(records: list[dict[str, Any]], path: Path) -> None:
     """Atomically write records to a JSONL file (write-tmp → fsync → rename)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_path = tempfile.mkstemp(
@@ -161,7 +161,7 @@ def _save_jsonl(records: List[Dict[str, Any]], path: Path) -> None:
     _echo(f"  Saved {len(records)} records → {path}")
 
 
-def _load_jsonl(path: Path) -> List[Dict[str, Any]]:
+def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     records = []
     with path.open(encoding="utf-8") as f:
         for line in f:
@@ -195,10 +195,10 @@ def _header(title: str) -> None:
 # Pipeline steps (reusable functions)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def step_ingest(cfg: Config, input_path: Optional[str] = None) -> List[IngestionResult]:
+def step_ingest(cfg: Config, input_path: str | None = None) -> list[IngestionResult]:
     """Ingest inputs and return IngestionResult list."""
     ingestor = Ingestor()
-    results: List[IngestionResult] = []
+    results: list[IngestionResult] = []
 
     if input_path:
         p = Path(input_path)
@@ -220,8 +220,8 @@ def step_ingest(cfg: Config, input_path: Optional[str] = None) -> List[Ingestion
 
 
 def step_generate(
-    cfg: Config, ingestion_results: List[IngestionResult]
-) -> List[DatasetSample]:
+    cfg: Config, ingestion_results: list[IngestionResult]
+) -> list[DatasetSample]:
     """Generate dataset samples from ingestion results. Does NOT save to disk."""
     generator = DatasetGenerator(cfg)
     samples = generator.generate_from_ingestion(ingestion_results)
@@ -233,8 +233,8 @@ def step_generate(
 
 
 def step_validate(
-    cfg: Config, samples: List[DatasetSample]
-) -> List[AnnotatedSample]:
+    cfg: Config, samples: list[DatasetSample]
+) -> list[AnnotatedSample]:
     """Validate samples (rule-based + optional LLM review)."""
     rule_validator = RuleValidator(min_confidence=cfg.filtering.min_confidence)
     sample_dicts = [s.to_dict() for s in samples]
@@ -275,8 +275,8 @@ def step_validate(
 
 
 def step_filter(
-    cfg: Config, annotated: List[AnnotatedSample]
-) -> tuple[List[AnnotatedSample], dict]:
+    cfg: Config, annotated: list[AnnotatedSample]
+) -> tuple[list[AnnotatedSample], dict]:
     """Run quality filtering pipeline."""
     pipeline = FilteringPipeline(cfg.filtering)
     filtered, filter_report = pipeline.run(annotated)
@@ -300,8 +300,8 @@ def step_filter(
 
 def step_evaluate(
     cfg: Config,
-    raw_samples: List[DatasetSample],
-    filtered_samples: List[AnnotatedSample],
+    raw_samples: list[DatasetSample],
+    filtered_samples: list[AnnotatedSample],
     filter_report: dict,
 ) -> None:
     """Compute and report quality metrics."""
@@ -316,7 +316,7 @@ def step_evaluate(
 
 
 def step_analyze(
-    cfg: Config, annotated: List[AnnotatedSample]
+    cfg: Config, annotated: list[AnnotatedSample]
 ) -> None:
     """Run error analysis and save report."""
     analyzer = ErrorAnalyzer()
@@ -393,7 +393,7 @@ def cli():
     help="Wipe the fingerprint store before running (start dedup fresh).",
 )
 def run_all(
-    input_path: Optional[str],
+    input_path: str | None,
     mock: bool,
     resume: bool,
     workers: int,
@@ -474,7 +474,11 @@ def run_all(
         _echo(f"  [dim]Skipped (resumed) — {len(raw_samples)} sample(s)[/dim]")
     else:
         if agent:
-            from generation.orchestrator import MultiAgentOrchestrator, OrchestratorConfig, SteeringMode
+            from generation.orchestrator import (
+                MultiAgentOrchestrator,
+                OrchestratorConfig,
+                SteeringMode,
+            )
             orch_cfg = OrchestratorConfig(
                 steering_mode=SteeringMode(steering),
                 critic_pass_threshold=threshold,
@@ -621,7 +625,7 @@ def ingest_cmd(input_path: str, mock: bool):
 @cli.command("generate")
 @click.option("--input", "input_path", default=None, help="Input file path.")
 @click.option("--mock/--no-mock", default=False, show_default=True)
-def generate_cmd(input_path: Optional[str], mock: bool):
+def generate_cmd(input_path: str | None, mock: bool):
     """Generate dataset samples from input data."""
     cfg = _load_config(mock=mock)
     _header("GENERATION")
@@ -638,7 +642,7 @@ def generate_cmd(input_path: Optional[str], mock: bool):
     help="Path to a JSONL raw dataset. Defaults to data/raw_dataset.jsonl.",
 )
 @click.option("--mock/--no-mock", default=False, show_default=True)
-def validate_cmd(dataset_path: Optional[str], mock: bool):
+def validate_cmd(dataset_path: str | None, mock: bool):
     """Validate a raw dataset JSONL file."""
     cfg = _load_config(mock=mock)
     _header("VALIDATION")
@@ -751,7 +755,7 @@ def evolve_cmd(
     rounds: int,
     ops: str,
     mock: bool,
-    output_path: Optional[str],
+    output_path: str | None,
 ):
     """
     Run Evol-Instruct prompt evolution on seed instructions from INPUT_PATH.
@@ -773,7 +777,7 @@ def evolve_cmd(
         _echo(f"[red]Input file not found: {p}[/red]")
         sys.exit(1)
 
-    seeds: List[str] = []
+    seeds: list[str] = []
     if p.suffix.lower() == ".json":
         raw_json = json.loads(p.read_text(encoding="utf-8"))
         if isinstance(raw_json, list):
@@ -885,12 +889,12 @@ def evolve_cmd(
     help="Disable the live Rich dashboard (useful for CI / log-only runs).",
 )
 def generate_agent_cmd(
-    input_path: Optional[str],
+    input_path: str | None,
     mock: bool,
     steering: str,
     threshold: float,
     workers: int,
-    output_path: Optional[str],
+    output_path: str | None,
     no_dashboard: bool,
 ):
     """
@@ -959,7 +963,6 @@ def generate_agent_cmd(
 
     if result.metrics_snapshot:
         _header("METRICS SNAPSHOT (accepted samples)")
-        import json as _json
         snap = result.metrics_snapshot
         _echo(f"  Schema validity       {snap.get('schema_validity_rate', 0):.1%}")
         _echo(f"  Task consistency      {snap.get('task_consistency_score', 0):.1%}")
@@ -1030,7 +1033,7 @@ def list_runs_cmd():
     default=None,
     help="Output file path. Default: data/export_<format>.jsonl",
 )
-def export_cmd(dataset_path: Optional[str], fmt: str, output_path: Optional[str]):
+def export_cmd(dataset_path: str | None, fmt: str, output_path: str | None):
     """Export the dataset to Argilla or Label Studio annotation format."""
     from evaluation.exporter import export_argilla, export_labelstudio
 
@@ -1098,6 +1101,7 @@ factorisation and database searching—exponentially faster than classical compu
 def health_check_cmd(mock: bool):
     """Check Ollama connectivity, disk space, config validity, and Python deps."""
     import shutil as _shutil
+
     from rich.table import Table as _Table
 
     cfg = _load_config(mock=mock, skip_preflight=True)

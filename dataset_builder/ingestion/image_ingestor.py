@@ -9,10 +9,9 @@ pipeline can still run.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
 
-def ingest_image(image_path: str) -> List[dict]:
+def ingest_image(image_path: str) -> list[dict]:
     """
     Attempt OCR on *image_path* and return a normalized ingestion record.
 

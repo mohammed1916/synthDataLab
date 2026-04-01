@@ -4,11 +4,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pytest
-from schema.dataset_schema import DatasetSample
-from evaluation.metrics import compute_metrics, DatasetMetrics, _shannon_entropy
 from collections import Counter
 
+from evaluation.metrics import _shannon_entropy, compute_metrics
+from schema.dataset_schema import DatasetSample
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

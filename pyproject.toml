@@ -80,6 +80,7 @@ skip-magic-trailing-comma = false
 python_version = "3.10"
 ignore_missing_imports = true
 no_strict_optional = true
+explicit_package_bases = true
 warn_unused_ignores = true
 warn_return_any = false
 exclude = ["data/", "tests/"]

@@ -7,13 +7,13 @@ import logging
 import shutil
 import threading
 import traceback
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from dataset_builder.config import Config
-from dataset_builder.ingestion.ingestor import Ingestor, IngestionResult
+from dataset_builder.ingestion.ingestor import Ingestor
 from dataset_builder.main import (
     _save_jsonl,
     _setup_file_logging,
@@ -25,7 +25,6 @@ from dataset_builder.main import (
     step_validate,
 )
 from dataset_builder.schema.dataset_schema import DatasetSample
-from dataset_builder.validation.annotation import AnnotatedSample
 
 try:
     from generation.orchestrator import MultiAgentOrchestrator, OrchestratorConfig, SteeringMode
@@ -51,8 +50,8 @@ class RunStatus:
     created_at: str
     updated_at: str
     status: RunStatusEnum
-    input_path: Optional[str] = None
-    input_text: Optional[str] = None
+    input_path: str | None = None
+    input_text: str | None = None
     mock: bool = False
     workers: int = 1
     agent: bool = False
@@ -61,12 +60,12 @@ class RunStatus:
     force: bool = False
     reset_fingerprints: bool = False
     cancel_requested: bool = False
-    error: Optional[str] = None
-    run_dir: Optional[str] = None
-    outputs: Dict[str, str] = None
-    pipeline_stage: Optional[str] = "pending"
+    error: str | None = None
+    run_dir: str | None = None
+    outputs: dict[str, str] = None
+    pipeline_stage: str | None = "pending"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["status"] = self.status.value
         return d
@@ -77,7 +76,7 @@ class PipelineController:
 
     def __init__(self):
         self._lock = threading.Lock()
-        self._runs: Dict[str, RunStatus] = {}
+        self._runs: dict[str, RunStatus] = {}
         self._load_existing_runs()
 
     def _run_base_path(self) -> Path:
@@ -130,16 +129,16 @@ class PipelineController:
             except Exception:
                 logger.warning("Ignoring corrupt run status in %s", status_file)
 
-    def list_runs(self) -> List[Dict[str, Any]]:
+    def list_runs(self) -> list[dict[str, Any]]:
         return [r.to_dict() for r in sorted(self._runs.values(), key=lambda run: run.created_at, reverse=True)]
 
-    def get_run(self, run_id: str) -> Optional[Dict[str, Any]]:
+    def get_run(self, run_id: str) -> dict[str, Any] | None:
         run_status = self._runs.get(run_id)
         if not run_status:
             return None
         return run_status.to_dict()
 
-    def get_run_logs(self, run_id: str) -> Optional[str]:
+    def get_run_logs(self, run_id: str) -> str | None:
         log_path = self._run_base_path() / "logs" / f"pipeline_{run_id}.log"
         if not log_path.exists():
             return None
@@ -147,8 +146,8 @@ class PipelineController:
 
     def create_run(
         self,
-        input_path: Optional[str] = None,
-        input_text: Optional[str] = None,
+        input_path: str | None = None,
+        input_text: str | None = None,
         mock: bool = False,
         workers: int = 1,
         agent: bool = False,
@@ -309,7 +308,7 @@ class PipelineController:
             run_status = self._runs.get(run_id)
             return bool(run_status and run_status.cancel_requested)
 
-    def cancel_run(self, run_id: str) -> Optional[RunStatus]:
+    def cancel_run(self, run_id: str) -> RunStatus | None:
         with self._lock:
             run_status = self._runs.get(run_id)
             if not run_status:
@@ -327,9 +326,9 @@ class PipelineController:
         self,
         run_id: str,
         status: RunStatusEnum,
-        error: Optional[str] = None,
-        outputs: Optional[Dict[str, str]] = None,
-        pipeline_stage: Optional[str] = None,
+        error: str | None = None,
+        outputs: dict[str, str] | None = None,
+        pipeline_stage: str | None = None,
     ) -> None:
         with self._lock:
             run_status = self._runs.get(run_id)

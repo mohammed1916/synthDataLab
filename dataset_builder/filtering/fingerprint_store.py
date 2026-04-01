@@ -20,7 +20,7 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -94,8 +94,8 @@ class FingerprintStore:
         return fp
 
     def filter_new(
-        self, samples: List[Dict[str, Any]]
-    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        self, samples: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """
         Partition *samples* into (new_samples, cross_run_duplicates).
 
@@ -110,8 +110,8 @@ class FingerprintStore:
             (new_samples, duplicates) where ``new_samples`` are unseen and
             ``duplicates`` were already present in a previous run.
         """
-        new: List[Dict[str, Any]] = []
-        dupes: List[Dict[str, Any]] = []
+        new: list[dict[str, Any]] = []
+        dupes: list[dict[str, Any]] = []
         for sample in samples:
             input_text = sample.get("input", "")
             task_type = sample.get("task_type", "unknown")

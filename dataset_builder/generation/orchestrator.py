@@ -46,20 +46,17 @@ pushed to the LiveMetricsTracker for the dashboard gauge.
 from __future__ import annotations
 
 import logging
-import random
 import sys
-import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
-from config import Config, DEFAULT_CONFIG
-from ingestion.ingestor import IngestionResult
-from generation.generator import DatasetGenerator
-from generation.critic_agent import CriticAgent, CriticScore
-from schema.dataset_schema import DatasetSample
+from config import DEFAULT_CONFIG, Config
 from evaluation.live_metrics import LiveMetricsTracker
 from evaluation.metrics import compute_metrics
+from generation.critic_agent import CriticAgent, CriticScore
+from generation.generator import DatasetGenerator
+from ingestion.ingestor import IngestionResult
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +121,7 @@ class HumanSteering:
 
     def review(
         self,
-        sample: Dict[str, Any],
+        sample: dict[str, Any],
         critic_score: CriticScore,
         index: int,
         total: int,
@@ -200,10 +197,11 @@ class HumanSteering:
                 print(f"  Unknown choice '{choice}'. {_REVIEW_HELP}")
 
 
-def _show_sample(sample: Dict[str, Any]) -> None:
+def _show_sample(sample: dict[str, Any]) -> None:
     """Print the full sample content for human inspection."""
     try:
         import json
+
         from rich.console import Console
         from rich.syntax import Syntax
 
@@ -228,19 +226,19 @@ def _show_sample(sample: Dict[str, Any]) -> None:
 class OrchestrationResult:
     """Summary returned by ``MultiAgentOrchestrator.run()``."""
 
-    accepted: List[Dict[str, Any]] = field(default_factory=list)
-    rejected: List[Dict[str, Any]] = field(default_factory=list)
-    fix_required: List[Dict[str, Any]] = field(default_factory=list)
+    accepted: list[dict[str, Any]] = field(default_factory=list)
+    rejected: list[dict[str, Any]] = field(default_factory=list)
+    fix_required: list[dict[str, Any]] = field(default_factory=list)
     total_generated: int = 0
-    critic_scores: List[CriticScore] = field(default_factory=list)
-    metrics_snapshot: Optional[Dict[str, Any]] = None
+    critic_scores: list[CriticScore] = field(default_factory=list)
+    metrics_snapshot: dict[str, Any] | None = None
     aborted: bool = False
 
     @property
     def acceptance_rate(self) -> float:
         return len(self.accepted) / max(self.total_generated, 1)
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "total_generated": self.total_generated,
             "accepted": len(self.accepted),
@@ -266,7 +264,7 @@ class MultiAgentOrchestrator:
     def __init__(
         self,
         config: Config = DEFAULT_CONFIG,
-        orch_config: Optional[OrchestratorConfig] = None,
+        orch_config: OrchestratorConfig | None = None,
     ):
         self.config = config
         self.orch = orch_config or OrchestratorConfig()
@@ -281,8 +279,8 @@ class MultiAgentOrchestrator:
 
     def run(
         self,
-        ingestion_results: List[IngestionResult],
-        on_sample: Optional[Any] = None,   # optional callback(sample, score, status)
+        ingestion_results: list[IngestionResult],
+        on_sample: Any | None = None,   # optional callback(sample, score, status)
     ) -> OrchestrationResult:
         """
         Run the full multi-agent pipeline.
@@ -428,8 +426,8 @@ class MultiAgentOrchestrator:
 
     def _repair_fix_required(
         self,
-        fix_required: List[Dict[str, Any]],
-    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        fix_required: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """
         Attempt one regeneration pass for FIX_REQUIRED samples.
 
@@ -442,8 +440,8 @@ class MultiAgentOrchestrator:
         """
         from ingestion.ingestor import IngestionResult
 
-        promoted: List[Dict[str, Any]] = []
-        still_broken: List[Dict[str, Any]] = []
+        promoted: list[dict[str, Any]] = []
+        still_broken: list[dict[str, Any]] = []
 
         for sample_dict in fix_required:
             # Re-construct a minimal IngestionResult from the stored metadata
@@ -479,7 +477,7 @@ class MultiAgentOrchestrator:
 
     def _apply_steering(
         self,
-        sample_dict: Dict[str, Any],
+        sample_dict: dict[str, Any],
         critic_score: CriticScore,
         idx: int,
         total: int,
@@ -513,7 +511,7 @@ class MultiAgentOrchestrator:
     # ── Collapse monitoring ───────────────────────────────────────────────────
 
     def _update_collapse_risk(
-        self, tracker: LiveMetricsTracker, accepted: List[Dict[str, Any]]
+        self, tracker: LiveMetricsTracker, accepted: list[dict[str, Any]]
     ) -> None:
         if not accepted:
             return

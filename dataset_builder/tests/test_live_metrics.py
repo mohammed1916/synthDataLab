@@ -5,9 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pytest
-from evaluation.live_metrics import LiveMetricsTracker, LiveSnapshot, SampleEvent
-
+from evaluation.live_metrics import LiveMetricsTracker, LiveSnapshot
 
 # ── Basic tracking ────────────────────────────────────────────────────────────
 
@@ -76,7 +74,6 @@ class TestDerivedStats:
         assert abs(snap.mean_critic - 0.8) < 1e-9
 
     def test_throughput_positive_after_recording(self):
-        import time
         tracker = LiveMetricsTracker(total=10, show_dashboard=False)
         with tracker:
             tracker.record("s1", "qa", 0.9, 0.8, "ACCEPT")

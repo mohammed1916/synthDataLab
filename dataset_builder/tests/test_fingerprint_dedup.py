@@ -9,18 +9,17 @@ Covers:
   - run-all CLI: --force bypasses dedup and runs the full pipeline
   - run-all CLI: --reset-fingerprints + second run = full pipeline again
 """
-import sys
 import json
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 from click.testing import CliRunner
-
-from filtering.fingerprint_store import FingerprintStore
 from main import cli
 
+from filtering.fingerprint_store import FingerprintStore
 
 # ─────────────────────────────────────────────────────────────────────────────
 # FingerprintStore unit tests

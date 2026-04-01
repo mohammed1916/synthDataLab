@@ -27,12 +27,12 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Argilla field/question structure per task type
-_ARGILLA_TASK_LABELS: Dict[str, List[str]] = {
+_ARGILLA_TASK_LABELS: dict[str, list[str]] = {
     "qa": ["correct", "partially_correct", "incorrect"],
     "extraction": ["complete", "partial", "missing"],
     "reasoning": ["valid", "flawed", "invalid"],
@@ -44,7 +44,7 @@ _ARGILLA_TASK_LABELS: Dict[str, List[str]] = {
 # Argilla export
 # ─────────────────────────────────────────────────────────────────────────────
 
-def export_argilla(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def export_argilla(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Convert dataset records to Argilla FeedbackRecord format (JSON-Lines).
 
@@ -60,7 +60,7 @@ def export_argilla(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     Returns:
         List of Argilla-compatible dicts, one per record.
     """
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for rec in records:
         task_type = rec.get("task_type", "unknown")
         input_text = str(rec.get("input", ""))
@@ -75,7 +75,7 @@ def export_argilla(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
         # Derive a simple quality label hint from confidence/critic
         confidence: float = float(metadata.get("confidence", 0.0))
-        critic: Dict[str, Any] = metadata.get("critic", {})
+        critic: dict[str, Any] = metadata.get("critic", {})
         composite: float = float(critic.get("composite", confidence))
         labels = _ARGILLA_TASK_LABELS.get(task_type, ["good", "acceptable", "poor"])
         if composite >= 0.70:
@@ -85,7 +85,7 @@ def export_argilla(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         else:
             suggested_label = labels[-1]
 
-        argilla_record: Dict[str, Any] = {
+        argilla_record: dict[str, Any] = {
             "fields": {
                 "input": input_text[:2000],   # cap at 2 K chars for UI
                 "output": output_text[:4000],
@@ -118,7 +118,7 @@ def export_argilla(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 # Label Studio export
 # ─────────────────────────────────────────────────────────────────────────────
 
-def export_labelstudio(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def export_labelstudio(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Convert dataset records to Label Studio JSON task format.
 
@@ -136,7 +136,7 @@ def export_labelstudio(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     Returns:
         List of Label Studio task dicts.
     """
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for i, rec in enumerate(records, start=1):
         task_type = rec.get("task_type", "unknown")
         input_text = str(rec.get("input", ""))
@@ -149,7 +149,7 @@ def export_labelstudio(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             output_text = str(output)
 
         confidence: float = float(metadata.get("confidence", 0.0))
-        critic: Dict[str, Any] = metadata.get("critic", {})
+        critic: dict[str, Any] = metadata.get("critic", {})
         composite: float = float(critic.get("composite", confidence))
 
         # Derive a simple quality pre-annotation
@@ -160,7 +160,7 @@ def export_labelstudio(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         else:
             quality = "low"
 
-        task: Dict[str, Any] = {
+        task: dict[str, Any] = {
             "id": i,
             "data": {
                 "text": input_text[:3000],

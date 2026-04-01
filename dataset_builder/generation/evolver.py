@@ -41,7 +41,7 @@ import logging
 import random
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class EvolveConfig:
     """Configuration for the prompt evolution process."""
 
     n_rounds: int = 2                  # how many evolution rounds to apply
-    operations: List[str] = field(
+    operations: list[str] = field(
         default_factory=lambda: [
             "add_constraints",
             "deepen",
@@ -84,7 +84,7 @@ class EvolvedPrompt:
     discarded: bool = False    # True if the prompt was rejected by the quality filter
     discard_reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "prompt": self.prompt,
             "seed_prompt": self.seed_prompt,
@@ -100,7 +100,7 @@ class EvolvedPrompt:
 # System prompts for LLM-based evolution (used when use_llm_evolution=True)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_LLM_EVOLUTION_PROMPTS: Dict[str, str] = {
+_LLM_EVOLUTION_PROMPTS: dict[str, str] = {
     "add_constraints": """You are an instruction difficulty evolver.
 Given the SEED INSTRUCTION below, create a harder variant by adding 1-3 specific constraints.
 Constraints can include: length limits, format requirements, restricted vocabulary, style rules.
@@ -221,8 +221,8 @@ class PromptEvolver:
 
     def __init__(
         self,
-        config: Optional[EvolveConfig] = None,
-        llm_client: Optional[Any] = None,
+        config: EvolveConfig | None = None,
+        llm_client: Any | None = None,
         seed: int = 42,
     ):
         self.config = config or EvolveConfig()
@@ -235,9 +235,9 @@ class PromptEvolver:
 
     def evolve(
         self,
-        seed_prompts: List[str],
-        n_rounds: Optional[int] = None,
-    ) -> List[EvolvedPrompt]:
+        seed_prompts: list[str],
+        n_rounds: int | None = None,
+    ) -> list[EvolvedPrompt]:
         """
         Evolve a list of seed prompts over multiple rounds.
 
@@ -253,7 +253,7 @@ class PromptEvolver:
             List[EvolvedPrompt] with full lineage metadata.
         """
         rounds = n_rounds if n_rounds is not None else self.config.n_rounds
-        all_evolved: List[EvolvedPrompt] = []
+        all_evolved: list[EvolvedPrompt] = []
         current_seeds = seed_prompts[: self.config.max_seeds_per_round]
 
         for round_num in range(1, rounds + 1):
@@ -287,9 +287,9 @@ class PromptEvolver:
     # ─────────────────────────────────────────────────────────────────────────
 
     def _evolve_round(
-        self, seeds: List[str], round_num: int
-    ) -> List[EvolvedPrompt]:
-        results: List[EvolvedPrompt] = []
+        self, seeds: list[str], round_num: int
+    ) -> list[EvolvedPrompt]:
+        results: list[EvolvedPrompt] = []
         for seed in seeds:
             operation = self._rng.choice(self.config.operations)
             try:

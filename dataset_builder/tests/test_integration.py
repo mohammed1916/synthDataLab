@@ -1,23 +1,20 @@
 """tests/test_integration.py — End-to-end integration tests using mock LLM."""
-import sys
 import json
+import sys
 from pathlib import Path
-import tempfile
-import os
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
+
 from config import Config
-from ingestion.ingestor import Ingestor
+from evaluation.metrics import compute_metrics
+from filtering.pipeline import FilteringPipeline
 from generation.generator import DatasetGenerator
 from generation.llm_client import MockLLMClient
-from validation.rule_validator import RuleValidator
-from filtering.pipeline import FilteringPipeline
-from evaluation.metrics import compute_metrics
-from schema.dataset_schema import DatasetSample, validate_sample
+from ingestion.ingestor import Ingestor
 from validation.annotation import AnnotationLabel
-
+from validation.rule_validator import RuleValidator
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -175,7 +172,6 @@ def test_compute_metrics_on_generated_samples(mock_config):
 
 def test_save_jsonl_is_atomic_no_partial_on_error(tmp_path):
     """If _save_jsonl fails mid-write, the original file must not be corrupted."""
-    import contextlib
     from main import _save_jsonl
 
     out = tmp_path / "out.jsonl"

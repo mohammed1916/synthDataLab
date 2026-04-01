@@ -17,14 +17,14 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Generator, Iterable, List, Optional, Tuple
 
-from config import Config, DEFAULT_CONFIG
+from config import DEFAULT_CONFIG, Config
+from generation.llm_client import BaseLLMClient, build_llm_client
 from ingestion.ingestor import IngestionResult
 from prompts.templates import PromptTemplates
 from schema.dataset_schema import DatasetSample
-from generation.llm_client import BaseLLMClient, build_llm_client
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class DatasetGenerator:
     def __init__(
         self,
         config: Config = DEFAULT_CONFIG,
-        llm_client: Optional[BaseLLMClient] = None,
+        llm_client: BaseLLMClient | None = None,
     ):
         self.config = config
         self.llm: BaseLLMClient = llm_client or build_llm_client(
@@ -59,8 +59,8 @@ class DatasetGenerator:
     # ─────────────────────────────────────────────────────────────────────────
 
     def generate_from_ingestion(
-        self, ingestion_results: List[IngestionResult]
-    ) -> List[DatasetSample]:
+        self, ingestion_results: list[IngestionResult]
+    ) -> list[DatasetSample]:
         """
         Generate samples from a list of IngestionResult objects.
 
@@ -75,7 +75,7 @@ class DatasetGenerator:
             Flat list of DatasetSample objects (valid and invalid).
         """
         # Build (chunk, task_type) work items
-        work: List[Tuple[IngestionResult, str]] = [
+        work: list[tuple[IngestionResult, str]] = [
             (chunk, task_type)
             for chunk in ingestion_results
             for task_type in self.config.generation.task_types
@@ -83,14 +83,20 @@ class DatasetGenerator:
         total = len(work)
         max_workers = max(1, self.config.generation.max_workers)
 
-        samples: List[DatasetSample] = []
+        samples: list[DatasetSample] = []
 
-        def _run_one(item: Tuple[IngestionResult, str]) -> Optional[DatasetSample]:
+        def _run_one(item: tuple[IngestionResult, str]) -> DatasetSample | None:
             chunk, task_type = item
             return self._generate_one(chunk, task_type)
 
         try:
-            from rich.progress import Progress, SpinnerColumn, BarColumn, TaskProgressColumn, TextColumn
+            from rich.progress import (
+                BarColumn,
+                Progress,
+                SpinnerColumn,
+                TaskProgressColumn,
+                TextColumn,
+            )
             _rich_available = True
         except ImportError:
             _rich_available = False
@@ -98,8 +104,14 @@ class DatasetGenerator:
         if max_workers == 1:
             # Sequential path — keeps log output predictable
             if _rich_available:
-                from rich.progress import Progress, SpinnerColumn, BarColumn, TaskProgressColumn, TextColumn
                 from rich.console import Console
+                from rich.progress import (
+                    BarColumn,
+                    Progress,
+                    SpinnerColumn,
+                    TaskProgressColumn,
+                    TextColumn,
+                )
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[bold cyan]Generating[/bold cyan]"),
@@ -156,8 +168,8 @@ class DatasetGenerator:
     # ─────────────────────────────────────────────────────────────────────────
 
     def generate_stream(
-        self, ingestion_results: List[IngestionResult]
-    ) -> Generator[Tuple[DatasetSample, IngestionResult, str], None, None]:
+        self, ingestion_results: list[IngestionResult]
+    ) -> Generator[tuple[DatasetSample, IngestionResult, str], None, None]:
         """
         Lazily yield ``(sample, chunk, task_type)`` tuples one at a time
         (sequential, single-threaded).
@@ -181,7 +193,7 @@ class DatasetGenerator:
 
     def _generate_one(
         self, chunk: IngestionResult, task_type: str
-    ) -> Optional[DatasetSample]:
+    ) -> DatasetSample | None:
         """Generate a single sample; return None only on unrecoverable error."""
         system_prompt, user_prompt = PromptTemplates.build(
             task_type, chunk.content

@@ -27,13 +27,13 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter
-from dataclasses import dataclass, asdict, field
-from typing import Any, Dict, List, Optional, Set
+from dataclasses import asdict, dataclass
+from typing import Any
 
 from schema.dataset_schema import validate_sample
 
 # Required output keys per task type
-_REQUIRED_OUTPUT_KEYS: Dict[str, List[str]] = {
+_REQUIRED_OUTPUT_KEYS: dict[str, list[str]] = {
     "qa": ["question", "answer", "evidence"],
     "extraction": ["entities", "relations", "key_facts"],
     "reasoning": ["reasoning_steps", "conclusion", "confidence_explanation"],
@@ -56,7 +56,7 @@ class DatasetMetrics:
 
     # Counts
     total_samples: int = 0
-    task_type_distribution: Dict[str, int] = None  # type: ignore
+    task_type_distribution: dict[str, int] = None  # type: ignore
 
     # Quality rates  (all in [0, 1])
     schema_validity_rate: float = 0.0
@@ -74,13 +74,13 @@ class DatasetMetrics:
     vocabulary_entropy: float = 0.0    # Shannon entropy bits; higher = more diverse
     bigram_entropy: float = 0.0        # Bigram entropy bits
     collapse_risk_score: float = 0.0   # Composite 0-1; >= 0.7 = CRITICAL
-    collapse_warning: Optional[str] = None   # Human-readable warning or None
+    collapse_warning: str | None = None   # Human-readable warning or None
 
     def __post_init__(self):
         if self.task_type_distribution is None:
             self.task_type_distribution = {}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         # Round floats for readability
         for key in list(d.keys()):
@@ -89,7 +89,7 @@ class DatasetMetrics:
         return d
 
 
-def compute_metrics(samples: List[Dict[str, Any]]) -> DatasetMetrics:
+def compute_metrics(samples: list[dict[str, Any]]) -> DatasetMetrics:
     """
     Compute all quality metrics for a list of sample dicts.
 
@@ -105,7 +105,7 @@ def compute_metrics(samples: List[Dict[str, Any]]) -> DatasetMetrics:
     m = DatasetMetrics(total_samples=len(samples))
 
     # Task type distribution
-    dist: Dict[str, int] = {}
+    dist: dict[str, int] = {}
     for s in samples:
         tt = s.get("task_type", "unknown")
         dist[tt] = dist.get(tt, 0) + 1
@@ -159,7 +159,7 @@ def compute_metrics(samples: List[Dict[str, Any]]) -> DatasetMetrics:
 # Per-metric helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _is_task_consistent(sample: Dict[str, Any]) -> bool:
+def _is_task_consistent(sample: dict[str, Any]) -> bool:
     """True if the output contains the expected keys for the task type."""
     task_type = sample.get("task_type", "")
     output = sample.get("output", {})
@@ -169,7 +169,7 @@ def _is_task_consistent(sample: Dict[str, Any]) -> bool:
     return all(k in output and output[k] not in ("", None, [], {}) for k in required)
 
 
-def _completeness(sample: Dict[str, Any]) -> float:
+def _completeness(sample: dict[str, Any]) -> float:
     """Fraction of required fields present and non-empty in the output."""
     task_type = sample.get("task_type", "")
     output = sample.get("output", {})
@@ -182,7 +182,7 @@ def _completeness(sample: Dict[str, Any]) -> float:
     return present / len(required)
 
 
-def _is_hallucinated(sample: Dict[str, Any]) -> bool:
+def _is_hallucinated(sample: dict[str, Any]) -> bool:
     """
     Heuristic: mark a QA sample as potentially hallucinated if the answer
     words have < 20 % overlap with the input text.
@@ -202,13 +202,13 @@ def _is_hallucinated(sample: Dict[str, Any]) -> bool:
     return overlap < _HALLUCINATION_OVERLAP_THRESHOLD
 
 
-def _diversity_score(samples: List[Dict[str, Any]]) -> float:
+def _diversity_score(samples: list[dict[str, Any]]) -> float:
     """
     Lexical diversity (type-token ratio) of output text across all samples.
 
     TTR = unique_tokens / total_tokens — ranges [0, 1]; higher is more diverse.
     """
-    all_tokens: List[str] = []
+    all_tokens: list[str] = []
     for s in samples:
         output_str = str(s.get("output", ""))
         all_tokens.extend(re.findall(r"\b\w{3,}\b", output_str.lower()))
@@ -219,7 +219,7 @@ def _diversity_score(samples: List[Dict[str, Any]]) -> float:
     return unique / len(all_tokens)
 
 
-def _words(text: str) -> Set[str]:
+def _words(text: str) -> set[str]:
     return set(re.findall(r"\b\w{2,}\b", text.lower()))
 
 
@@ -227,16 +227,16 @@ def _words(text: str) -> Set[str]:
 # Collapse early-warning helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _collect_tokens(samples: List[Dict[str, Any]]) -> List[str]:
+def _collect_tokens(samples: list[dict[str, Any]]) -> list[str]:
     """Collect all lowercase word tokens from all sample outputs."""
-    tokens: List[str] = []
+    tokens: list[str] = []
     for s in samples:
         text = str(s.get("output", ""))
         tokens.extend(re.findall(r"\b\w{3,}\b", text.lower()))
     return tokens
 
 
-def _collect_bigrams(tokens: List[str]) -> List[str]:
+def _collect_bigrams(tokens: list[str]) -> list[str]:
     """Return consecutive bigrams as 'w1_w2' strings."""
     if len(tokens) < 2:
         return []
@@ -289,7 +289,7 @@ def _collapse_risk(
     risk = 0.40 * entropy_risk + 0.40 * diversity_risk + 0.20 * hallucination_risk
     risk = round(risk, 4)
 
-    warning: Optional[str] = None
+    warning: str | None = None
     if risk >= _COLLAPSE_RISK_CRITICAL:
         warning = (
             f"CRITICAL — Collapse risk {risk:.2f}. "

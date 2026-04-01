@@ -4,19 +4,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
 from config import Config
 from generation.orchestrator import (
-    MultiAgentOrchestrator,
-    OrchestratorConfig,
-    OrchestrationResult,
-    SteeringMode,
     CollapseAbortError,
     HumanSteering,
+    MultiAgentOrchestrator,
+    OrchestrationResult,
+    OrchestratorConfig,
+    SteeringMode,
 )
 from ingestion.ingestor import IngestionResult
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

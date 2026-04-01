@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import re
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any
 
 from .few_shot_examples import FEW_SHOT_EXAMPLES
 
@@ -80,7 +80,7 @@ class TaskType(str, Enum):
 # System prompts (one per task type)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_SYSTEM_PROMPTS: Dict[str, str] = {
+_SYSTEM_PROMPTS: dict[str, str] = {
     TaskType.QA: """You are a high-quality dataset curation assistant specialised in \
 Question Answering (QA).
 
@@ -173,7 +173,7 @@ RULES:
 
 def _build_few_shot_block(task_type: str) -> str:
     """Format few-shot examples as numbered EXAMPLE blocks."""
-    examples: List[Dict[str, Any]] = FEW_SHOT_EXAMPLES.get(task_type, [])
+    examples: list[dict[str, Any]] = FEW_SHOT_EXAMPLES.get(task_type, [])
     if not examples:
         return ""
 

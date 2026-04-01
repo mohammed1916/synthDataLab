@@ -4,9 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pytest
-from generation.critic_agent import CriticAgent, CriticScore, PASS_THRESHOLD, REVIEW_THRESHOLD
-
+from generation.critic_agent import CriticAgent, CriticScore
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

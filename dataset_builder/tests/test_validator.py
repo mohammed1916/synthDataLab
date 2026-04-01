@@ -4,11 +4,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pytest
 from schema.dataset_schema import DatasetSample
-from validation.rule_validator import RuleValidator
 from validation.annotation import AnnotationLabel
-
+from validation.rule_validator import RuleValidator
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

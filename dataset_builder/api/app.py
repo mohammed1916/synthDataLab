@@ -1,17 +1,18 @@
 """FastAPI app for synthDataLab pipeline orchestration."""
 from __future__ import annotations
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from typing import Any
+
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
-from typing import Any, Dict, List, Optional
 
-from .service import controller, RunStatusEnum
+from .service import RunStatusEnum, controller
 
 
 class RunRequest(BaseModel):
-    input_path: Optional[str] = None
-    input_text: Optional[str] = None
+    input_path: str | None = None
+    input_text: str | None = None
     mock: bool = False
     workers: int = Field(1, ge=1, le=16)
     agent: bool = False
@@ -33,8 +34,8 @@ class RunResponse(BaseModel):
     created_at: str
     updated_at: str
     cancel_requested: bool = False
-    error: Optional[str] = None
-    outputs: Optional[Dict[str, str]] = None
+    error: str | None = None
+    outputs: dict[str, str] | None = None
 
 
 app = FastAPI(
@@ -52,7 +53,7 @@ app.add_middleware(
 
 
 @app.get("/health")
-def health() -> Dict[str, Any]:
+def health() -> dict[str, Any]:
     return {"status": "ok", "service": "synthdatalab"}
 
 
@@ -84,8 +85,8 @@ def create_run(payload: RunRequest, background_tasks: BackgroundTasks):
     )
 
 
-@app.get("/api/runs", response_model=List[Dict[str, Any]])
-def list_runs(status: Optional[str] = None):
+@app.get("/api/runs", response_model=list[dict[str, Any]])
+def list_runs(status: str | None = None):
     runs = controller.list_runs()
     if status:
         allowed = {s.value for s in RunStatusEnum}
@@ -95,7 +96,7 @@ def list_runs(status: Optional[str] = None):
     return runs
 
 
-@app.get("/api/runs/{run_id}", response_model=Dict[str, Any])
+@app.get("/api/runs/{run_id}", response_model=dict[str, Any])
 def get_run(run_id: str):
     run = controller.get_run(run_id)
     if not run:

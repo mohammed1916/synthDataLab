@@ -1,9 +1,9 @@
 """Tests for the API layer in dataset_builder.api."""
 import time
+
 from fastapi.testclient import TestClient
 
 from dataset_builder.api.app import app
-
 
 client = TestClient(app)
 

@@ -20,7 +20,7 @@ import re
 import threading
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -136,8 +136,8 @@ class OllamaClient(BaseLLMClient):
         Raises ``RuntimeError`` with a human-readable fix suggestion if either
         condition is not met.  Call this once at startup to fail fast.
         """
-        import urllib.request
         import urllib.error
+        import urllib.request
 
         # 1. Check server reachability via the /api/tags endpoint
         tags_url = self.base_url.rstrip("/") + "/api/tags"
@@ -216,7 +216,7 @@ class MockLLMClient(BaseLLMClient):
 
     # ── Task generators ───────────────────────────────────────────────────────
 
-    def _gen_qa(self, passage: str, defect: bool) -> Dict[str, Any]:
+    def _gen_qa(self, passage: str, defect: bool) -> dict[str, Any]:
         sentences = self._sentences(passage)
         key = sentences[self._rng.randint(0, len(sentences) - 1)] if sentences else passage[:120]
 
@@ -233,7 +233,7 @@ class MockLLMClient(BaseLLMClient):
 
         answer = key[:300] if len(key) > 10 else passage[:200]
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "question": question,
             "answer": answer,
         }
@@ -254,7 +254,7 @@ class MockLLMClient(BaseLLMClient):
 
         return result
 
-    def _gen_extraction(self, passage: str, defect: bool) -> Dict[str, Any]:
+    def _gen_extraction(self, passage: str, defect: bool) -> dict[str, Any]:
         entities = self._extract_entities(passage)
         relations = self._extract_relations(passage)
         sentences = self._sentences(passage)
@@ -262,7 +262,7 @@ class MockLLMClient(BaseLLMClient):
         if not key_facts:
             key_facts = [passage[:200]]
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "entities": entities,
             "relations": relations,
             "key_facts": key_facts,
@@ -281,7 +281,7 @@ class MockLLMClient(BaseLLMClient):
 
         return result
 
-    def _gen_reasoning(self, passage: str, defect: bool) -> Dict[str, Any]:
+    def _gen_reasoning(self, passage: str, defect: bool) -> dict[str, Any]:
         sentences = self._sentences(passage)
         topic = " ".join(passage.split()[:8]) + "..."
 
@@ -290,14 +290,14 @@ class MockLLMClient(BaseLLMClient):
                 f"Step 1 — Identify the core claim: '{sentences[0][:120]}'",
                 f"Step 2 — Examine the supporting evidence: '{sentences[min(1, len(sentences)-1)][:120]}'",
                 f"Step 3 — Apply logical reasoning: The passage consistently supports the argument that {topic}",
-                f"Step 4 — Consider counter-arguments or qualifications mentioned in the text.",
+                "Step 4 — Consider counter-arguments or qualifications mentioned in the text.",
                 f"Step 5 — Synthesise: The passage provides '{sentences[-1][:100]}' as a concluding point.",
             ]
         else:
             steps = [
                 f"Step 1 — The passage introduces the concept of {topic}",
                 f"Step 2 — Key evidence is found in the statement: '{passage[:150]}'",
-                f"Step 3 — This leads to the conclusion that the passage demonstrates the stated claim.",
+                "Step 3 — This leads to the conclusion that the passage demonstrates the stated claim.",
             ]
 
         conclusion = (
@@ -309,7 +309,7 @@ class MockLLMClient(BaseLLMClient):
             "without requiring external assumptions."
         )
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "reasoning_steps": steps,
             "conclusion": conclusion,
             "confidence_explanation": confidence_explanation,
@@ -328,7 +328,7 @@ class MockLLMClient(BaseLLMClient):
 
         return result
 
-    def _gen_reasoning_trace(self, passage: str, defect: bool) -> Dict[str, Any]:
+    def _gen_reasoning_trace(self, passage: str, defect: bool) -> dict[str, Any]:
         """Generate an o1/R1-style extended reasoning trace with self-correction."""
         sentences = self._sentences(passage)
         topic = " ".join(passage.split()[:8]) + "..."
@@ -360,7 +360,7 @@ class MockLLMClient(BaseLLMClient):
         )
         confidence = round(self._rng.uniform(0.78, 0.97), 2)
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "think": think_block,
             "answer": answer,
             "verification": verification,
@@ -385,7 +385,7 @@ class MockLLMClient(BaseLLMClient):
 
         return result
 
-    def _gen_preference(self, passage: str, defect: bool) -> Dict[str, Any]:
+    def _gen_preference(self, passage: str, defect: bool) -> dict[str, Any]:
         """Generate a DPO-ready (chosen, rejected) preference pair."""
         sentences = self._sentences(passage)
         topic = " ".join(passage.split()[:6]) + "..."
@@ -425,7 +425,7 @@ class MockLLMClient(BaseLLMClient):
         rejected_response = self._rng.choice(rejected_patterns)
         rejected_score = round(self._rng.uniform(0.15, 0.45), 2)
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "prompt": prompt_text,
             "chosen": {
                 "response": chosen_response,
@@ -482,7 +482,7 @@ class MockLLMClient(BaseLLMClient):
         return user_prompt[-1000:].strip()
 
     @staticmethod
-    def _sentences(text: str) -> List[str]:
+    def _sentences(text: str) -> list[str]:
         """Simple sentence splitter."""
         raw = re.split(r"(?<=[.!?])\s+", text)
         return [s.strip() for s in raw if len(s.strip()) > 15]
@@ -490,7 +490,7 @@ class MockLLMClient(BaseLLMClient):
     # Simple capitalised-word entity extraction heuristic
     _ENTITY_TYPES = ["PERSON", "ORGANIZATION", "LOCATION", "DATE", "TECHNOLOGY", "CONCEPT"]
 
-    def _extract_entities(self, text: str) -> List[Dict[str, str]]:
+    def _extract_entities(self, text: str) -> list[dict[str, str]]:
         words = text.split()
         entities = []
         seen = set()
@@ -511,7 +511,7 @@ class MockLLMClient(BaseLLMClient):
             entities.append({"text": text.split()[0], "type": "CONCEPT"})
         return entities
 
-    def _extract_relations(self, text: str) -> List[Dict[str, str]]:
+    def _extract_relations(self, text: str) -> list[dict[str, str]]:
         entities = self._extract_entities(text)
         if len(entities) < 2:
             return []

@@ -13,8 +13,7 @@ from __future__ import annotations
 
 import logging
 import re
-from collections import defaultdict
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -37,19 +36,19 @@ class Deduplicator:
         self.threshold = threshold
 
     def deduplicate(
-        self, samples: List[Dict[str, Any]]
-    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        self, samples: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """
         Return (unique_samples, removed_duplicates).
 
         Samples with the same input text but *different* task types are NOT
         considered duplicates and are always kept.
         """
-        kept: List[Dict[str, Any]] = []
-        removed: List[Dict[str, Any]] = []
+        kept: list[dict[str, Any]] = []
+        removed: list[dict[str, Any]] = []
 
         # Track seen token sets per task type  {task_type: [set, ...]}
-        seen_by_task: Dict[str, List[Set[str]]] = {}
+        seen_by_task: dict[str, list[set[str]]] = {}
 
         for sample in samples:
             task_type = sample.get("task_type", "unknown")
@@ -80,7 +79,7 @@ class Deduplicator:
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _tokenise(text: str) -> Set[str]:
+def _tokenise(text: str) -> set[str]:
     """Lowercase word tokenisation with stop-word stripping."""
     _STOP = {
         "the", "a", "an", "is", "are", "was", "were", "in", "on", "at",
@@ -91,7 +90,7 @@ def _tokenise(text: str) -> Set[str]:
     return {w for w in words if w not in _STOP}
 
 
-def _jaccard(a: Set[str], b: Set[str]) -> float:
+def _jaccard(a: set[str], b: set[str]) -> float:
     """Jaccard similarity of two token sets."""
     if not a or not b:
         return 0.0

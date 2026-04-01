@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from evaluation.metrics import DatasetMetrics
 
@@ -22,7 +22,7 @@ class MetricsReporter:
         output_path: Where to write the JSON metrics report (optional).
     """
 
-    def __init__(self, output_path: Optional[Path] = None):
+    def __init__(self, output_path: Path | None = None):
         self.output_path = output_path
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -33,8 +33,8 @@ class MetricsReporter:
         self,
         raw_metrics: DatasetMetrics,
         filtered_metrics: DatasetMetrics,
-        filtering_report_dict: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        filtering_report_dict: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Build and optionally save a full metrics report.
 
@@ -64,8 +64,8 @@ class MetricsReporter:
     def _build_report(
         raw: DatasetMetrics,
         filtered: DatasetMetrics,
-        filtering_report: Optional[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        filtering_report: dict[str, Any] | None,
+    ) -> dict[str, Any]:
         def _delta(before: float, after: float) -> str:
             diff = after - before
             sign = "+" if diff >= 0 else ""
@@ -134,9 +134,9 @@ class MetricsReporter:
     @staticmethod
     def _print_report(raw: DatasetMetrics, filtered: DatasetMetrics) -> None:
         try:
-            from rich.table import Table
-            from rich.console import Console
             from rich import box
+            from rich.console import Console
+            from rich.table import Table
             _rich_table(raw, filtered)
         except ImportError:
             _plain_table(raw, filtered)
@@ -147,9 +147,9 @@ class MetricsReporter:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _rich_table(raw: DatasetMetrics, filtered: DatasetMetrics) -> None:
-    from rich.table import Table
-    from rich.console import Console
     from rich import box
+    from rich.console import Console
+    from rich.table import Table
 
     console = Console()
 

@@ -13,9 +13,9 @@ validation layer receives an ``AnnotatedSample`` record with:
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class AnnotationLabel(str, Enum):
@@ -49,7 +49,7 @@ class RejectionReason:
     code: str
     message: str
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         return {"code": self.code, "message": self.message}
 
 
@@ -66,14 +66,14 @@ class AnnotatedSample:
     explains why a sample was not accepted.
     """
 
-    sample: Dict[str, Any]                             # original sample dict
+    sample: dict[str, Any]                             # original sample dict
     label: AnnotationLabel = AnnotationLabel.ACCEPT
-    rejection_reasons: List[RejectionReason] = field(default_factory=list)
+    rejection_reasons: list[RejectionReason] = field(default_factory=list)
 
     # Per-check flags
     is_valid_schema: bool = True
     rule_checks_passed: bool = True
-    llm_review_passed: Optional[bool] = None           # None = not run
+    llm_review_passed: bool | None = None           # None = not run
 
     reviewer_notes: str = ""
 
@@ -96,7 +96,7 @@ class AnnotatedSample:
 
     # ── Serialisation ─────────────────────────────────────────────────────────
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             **self.sample,
             "annotation": {
@@ -113,6 +113,6 @@ class AnnotatedSample:
         return json.dumps(self.to_dict(), ensure_ascii=False)
 
     @classmethod
-    def from_sample_dict(cls, sample: Dict[str, Any]) -> "AnnotatedSample":
+    def from_sample_dict(cls, sample: dict[str, Any]) -> AnnotatedSample:
         """Create a fresh AnnotatedSample from a raw sample dict."""
         return cls(sample=sample)
