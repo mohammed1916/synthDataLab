@@ -1,0 +1,12 @@
+{
+  "run_id": "8d44bd67",
+  "git_sha": "bc79414",
+  "config_hash": "63239c9ee6f2e078",
+  "provider": "mock",
+  "model": "qwen3:8b",
+  "task_types": [
+    "qa",
+    "extraction",
+    "reasoning"
+  ]
+}

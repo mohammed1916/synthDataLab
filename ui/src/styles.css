@@ -79,6 +79,17 @@ body {
   margin-bottom: 8px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+button.small.cancel {
+  margin-left: 6px;
+  background: #ef4444;
+}
+
 .panel-left form label,
 .panel-left form .row {
   margin-bottom: 12px;

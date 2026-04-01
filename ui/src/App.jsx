@@ -13,6 +13,7 @@ export default function App() {
   const [threshold, setThreshold] = useState(0.7);
   const [runs, setRuns] = useState([]);
   const [selectedRun, setSelectedRun] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('all');
   const [logs, setLogs] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('');
@@ -44,6 +45,23 @@ export default function App() {
       setLogs('No logs available yet.');
     }
   }
+
+  const cancelRun = async (runId) => {
+    try {
+      await axios.post(`${API_BASE}/runs/${runId}/cancel`);
+      setSubmitStatus(`Cancel requested for ${runId}`);
+      await fetchRuns();
+      if (selectedRun?.run_id === runId) {
+        await fetchRunDetails(runId);
+        await fetchRunLogs(runId);
+      }
+    } catch (err) {
+      console.error('cancelRun', err);
+      setSubmitStatus(`Failed to cancel ${runId}`);
+    }
+  };
+
+  const filteredRuns = statusFilter === 'all' ? runs : runs.filter((r) => r.status === statusFilter);
 
   const submitRun = async (e) => {
     e.preventDefault();
@@ -118,6 +136,10 @@ export default function App() {
         <div className="stat-card">
           <h3>Failed</h3>
           <strong>{runs.filter((r) => r.status === 'failed').length}</strong>
+        </div>
+        <div className="stat-card">
+          <h3>Canceled</h3>
+          <strong>{runs.filter((r) => r.status === 'canceled').length}</strong>
         </div>
       </div>
 
@@ -200,7 +222,17 @@ export default function App() {
         <section className="panel panel-middle">
           <div className="panel-header">
             <h2>Run List</h2>
-            <button onClick={fetchRuns}>Refresh</button>
+            <div className="header-actions">
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="all">All</option>
+                <option value="pending">Pending</option>
+                <option value="running">Running</option>
+                <option value="succeeded">Succeeded</option>
+                <option value="failed">Failed</option>
+                <option value="canceled">Canceled</option>
+              </select>
+              <button onClick={fetchRuns}>Refresh</button>
+            </div>
           </div>
           <div className="table-wrap">
             <table>
@@ -230,6 +262,11 @@ export default function App() {
                       >
                         View
                       </button>
+                      {run.status === 'running' && (
+                        <button className="small cancel" onClick={() => cancelRun(run.run_id)}>
+                          Cancel
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

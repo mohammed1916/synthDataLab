@@ -42,6 +42,7 @@ class RunStatusEnum(str, Enum):
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+    CANCELED = "canceled"
 
 
 @dataclass
@@ -53,6 +54,16 @@ class RunStatus:
     input_path: Optional[str] = None
     input_text: Optional[str] = None
     mock: bool = False
+    workers: int = 1
+    agent: bool = False
+    steering: str = "auto"
+    threshold: float = 0.7
+    force: bool = False
+    reset_fingerprints: bool = False
+    cancel_requested: bool = False
+    error: Optional[str] = None
+    run_dir: Optional[str] = None
+    outputs: Dict[str, str] = None
     workers: int = 1
     agent: bool = False
     steering: str = "auto"
@@ -117,6 +128,7 @@ class PipelineController:
                     threshold=float(raw.get("threshold", 0.7)),
                     force=raw.get("force", False),
                     reset_fingerprints=raw.get("reset_fingerprints", False),
+                    cancel_requested=raw.get("cancel_requested", False),
                     error=raw.get("error"),
                     run_dir=str(run_dir),
                     outputs=raw.get("outputs", {}),
@@ -209,6 +221,10 @@ class PipelineController:
             else:
                 ingestion_results = step_ingest(cfg, run_status.input_path)
 
+            if self._is_cancel_requested(run_id):
+                self._update_status(run_id, RunStatusEnum.CANCELED, error="Run canceled during ingest")
+                return
+
             # 2. Generate
             if run_status.agent and MultiAgentOrchestrator is not None:
                 orch_cfg = OrchestratorConfig(
@@ -230,11 +246,19 @@ class PipelineController:
 
             _save_jsonl([s.to_dict() for s in raw_samples], cfg.storage.raw_path())
 
+            if self._is_cancel_requested(run_id):
+                self._update_status(run_id, RunStatusEnum.CANCELED, error="Run canceled after generation")
+                return
+
             # 3. Validate
             annotated = step_validate(cfg, raw_samples)
 
             # 4. Filter
             filtered, filter_report = step_filter(cfg, annotated)
+
+            if self._is_cancel_requested(run_id):
+                self._update_status(run_id, RunStatusEnum.CANCELED, error="Run canceled after filtering")
+                return
 
             # 5. Evaluate
             step_evaluate(cfg, raw_samples, filtered, filter_report)
@@ -274,7 +298,28 @@ class PipelineController:
         except Exception as exc:
             tb = traceback.format_exc()
             logger.error("Run %s failed: %s", run_id, tb)
-            self._update_status(run_id, RunStatusEnum.FAILED, error=str(exc))
+            if self._is_cancel_requested(run_id):
+                self._update_status(run_id, RunStatusEnum.CANCELED, error="Run canceled by user")
+            else:
+                self._update_status(run_id, RunStatusEnum.FAILED, error=str(exc))
+
+    def _is_cancel_requested(self, run_id: str) -> bool:
+        with self._lock:
+            run_status = self._runs.get(run_id)
+            return bool(run_status and run_status.cancel_requested)
+
+    def cancel_run(self, run_id: str) -> Optional[RunStatus]:
+        with self._lock:
+            run_status = self._runs.get(run_id)
+            if not run_status:
+                return None
+            run_status.cancel_requested = True
+            if run_status.status in {RunStatusEnum.PENDING, RunStatusEnum.RUNNING}:
+                run_status.status = RunStatusEnum.CANCELED
+                run_status.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                run_status.error = "Run canceled by user"
+            self._save_status(run_status)
+            return run_status
 
     def _update_status(
         self,

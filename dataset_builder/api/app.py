@@ -32,6 +32,7 @@ class RunResponse(BaseModel):
     status: str
     created_at: str
     updated_at: str
+    cancel_requested: bool = False
     error: Optional[str] = None
     outputs: Optional[Dict[str, str]] = None
 
@@ -77,14 +78,21 @@ def create_run(payload: RunRequest, background_tasks: BackgroundTasks):
         status=run_status.status.value,
         created_at=run_status.created_at,
         updated_at=run_status.updated_at,
+        cancel_requested=run_status.cancel_requested,
         error=run_status.error,
         outputs=run_status.outputs,
     )
 
 
 @app.get("/api/runs", response_model=List[Dict[str, Any]])
-def list_runs():
-    return controller.list_runs()
+def list_runs(status: Optional[str] = None):
+    runs = controller.list_runs()
+    if status:
+        allowed = {s.value for s in RunStatusEnum}
+        if status not in allowed:
+            raise HTTPException(status_code=400, detail=f"Invalid status filter. Allowed: {sorted(allowed)}")
+        runs = [r for r in runs if r.get("status") == status]
+    return runs
 
 
 @app.get("/api/runs/{run_id}", response_model=Dict[str, Any])
@@ -93,6 +101,23 @@ def get_run(run_id: str):
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
     return run
+
+
+@app.post("/api/runs/{run_id}/cancel", response_model=RunResponse)
+def cancel_run(run_id: str):
+    run_status = controller.cancel_run(run_id)
+    if not run_status:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    return RunResponse(
+        run_id=run_status.run_id,
+        status=run_status.status.value,
+        created_at=run_status.created_at,
+        updated_at=run_status.updated_at,
+        cancel_requested=run_status.cancel_requested,
+        error=run_status.error,
+        outputs=run_status.outputs,
+    )
 
 
 @app.get("/api/runs/{run_id}/logs")
