@@ -61,6 +61,44 @@ export default function App() {
     }
   };
 
+  const pipelineSteps = [
+    {key: 'ingest', label: 'Ingest'},
+    {key: 'generate', label: 'Generate'},
+    {key: 'validate', label: 'Validate'},
+    {key: 'filter', label: 'Filter'},
+    {key: 'evaluate', label: 'Evaluate'},
+    {key: 'analyze', label: 'Analyze'},
+    {key: 'complete', label: 'Complete'},
+  ];
+
+  const statusToStage = (status) => {
+    switch (status) {
+      case 'pending':
+        return 'ingest';
+      case 'running':
+        return 'generate';
+      case 'succeeded':
+        return 'complete';
+      case 'failed':
+        return 'failed';
+      case 'canceled':
+        return 'canceled';
+      default:
+        return 'ingest';
+    }
+  };
+
+  const normalizedSelectedStage = selectedRun ? selectedRun.pipeline_stage || statusToStage(selectedRun.status) : null;
+  let activeStepIndex = -1;
+  if (normalizedSelectedStage) {
+    activeStepIndex = pipelineSteps.findIndex((s) => s.key === normalizedSelectedStage);
+  }
+  if (activeStepIndex === -1 && selectedRun) {
+    if (selectedRun.status === 'failed' || selectedRun.status === 'canceled') {
+      activeStepIndex = pipelineSteps.length - 1;
+    }
+  }
+
   const filteredRuns = statusFilter === 'all' ? runs : runs.filter((r) => r.status === statusFilter);
 
   const submitRun = async (e) => {
@@ -257,7 +295,7 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                {runs.map((run) => (
+                {filteredRuns.map((run) => (
                   <tr key={run.run_id} className={run.status === 'failed' ? 'failed' : run.status === 'running' ? 'running' : 'success'}>
                     <td>{run.run_id}</td>
                     <td>{run.status}</td>
@@ -290,6 +328,26 @@ export default function App() {
           <h2>Selected Run Details</h2>
           {selectedRun ? (
             <>
+              <div className="pipeline-timeline">
+                {pipelineSteps.map((step, index) => {
+                  const isActive = index <= activeStepIndex;
+                  const isFailed = selectedRun.status === 'failed';
+                  const isCanceled = selectedRun.status === 'canceled';
+                  return (
+                    <div
+                      key={step.key}
+                      className={`timeline-step ${isActive ? 'active' : ''} ${
+                        step.key === 'failed' && isFailed ? 'failed' : ''
+                      } ${step.key === 'canceled' && isCanceled ? 'canceled' : ''}`}
+                    >
+                      <span>{step.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="pipeline-current">
+                Current stage: <strong>{normalizedSelectedStage || 'unknown'}</strong>
+              </p>
               <pre className="details-json">{JSON.stringify(selectedRun, null, 2)}</pre>
               <h3>Logs</h3>
               <pre className="logs">{logs || 'No logs yet'}</pre>

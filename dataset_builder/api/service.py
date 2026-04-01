@@ -64,15 +64,7 @@ class RunStatus:
     error: Optional[str] = None
     run_dir: Optional[str] = None
     outputs: Dict[str, str] = None
-    workers: int = 1
-    agent: bool = False
-    steering: str = "auto"
-    threshold: float = 0.7
-    force: bool = False
-    reset_fingerprints: bool = False
-    error: Optional[str] = None
-    run_dir: Optional[str] = None
-    outputs: Dict[str, str] = None
+    pipeline_stage: Optional[str] = "pending"
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -132,6 +124,7 @@ class PipelineController:
                     error=raw.get("error"),
                     run_dir=str(run_dir),
                     outputs=raw.get("outputs", {}),
+                    pipeline_stage=raw.get("pipeline_stage", "pending"),
                 )
                 self._runs[run_status.run_id] = run_status
             except Exception:
@@ -185,6 +178,7 @@ class PipelineController:
             reset_fingerprints=reset_fingerprints,
             run_dir=str(cfg.run_dir()),
             outputs={},
+            pipeline_stage="pending",
         )
 
         self._runs[cfg.run_id] = run_status
@@ -202,7 +196,7 @@ class PipelineController:
     def _execute_run(self, cfg: Config, run_status: RunStatus) -> None:
         run_id = run_status.run_id
         try:
-            self._update_status(run_id, RunStatusEnum.RUNNING)
+            self._update_status(run_id, RunStatusEnum.RUNNING, pipeline_stage="ingest")
 
             _setup_file_logging(cfg.storage.data_dir / "logs", run_id)
             cfg.ensure_dirs()
@@ -222,8 +216,11 @@ class PipelineController:
                 ingestion_results = step_ingest(cfg, run_status.input_path)
 
             if self._is_cancel_requested(run_id):
-                self._update_status(run_id, RunStatusEnum.CANCELED, error="Run canceled during ingest")
+                self._update_status(run_id, RunStatusEnum.CANCELED, error="Run canceled during ingest", pipeline_stage="canceled")
                 return
+
+            # 2. Generate
+            self._update_status(run_id, RunStatusEnum.RUNNING, pipeline_stage="generate")
 
             # 2. Generate
             if run_status.agent and MultiAgentOrchestrator is not None:
@@ -247,23 +244,27 @@ class PipelineController:
             _save_jsonl([s.to_dict() for s in raw_samples], cfg.storage.raw_path())
 
             if self._is_cancel_requested(run_id):
-                self._update_status(run_id, RunStatusEnum.CANCELED, error="Run canceled after generation")
+                self._update_status(run_id, RunStatusEnum.CANCELED, error="Run canceled after generation", pipeline_stage="canceled")
                 return
 
             # 3. Validate
+            self._update_status(run_id, RunStatusEnum.RUNNING, pipeline_stage="validate")
             annotated = step_validate(cfg, raw_samples)
 
             # 4. Filter
+            self._update_status(run_id, RunStatusEnum.RUNNING, pipeline_stage="filter")
             filtered, filter_report = step_filter(cfg, annotated)
 
             if self._is_cancel_requested(run_id):
-                self._update_status(run_id, RunStatusEnum.CANCELED, error="Run canceled after filtering")
+                self._update_status(run_id, RunStatusEnum.CANCELED, error="Run canceled after filtering", pipeline_stage="canceled")
                 return
 
             # 5. Evaluate
+            self._update_status(run_id, RunStatusEnum.RUNNING, pipeline_stage="evaluate")
             step_evaluate(cfg, raw_samples, filtered, filter_report)
 
             # 6. Analyze
+            self._update_status(run_id, RunStatusEnum.RUNNING, pipeline_stage="analyze")
             step_analyze(cfg, annotated)
 
             # Copy artifacts to run folder
@@ -293,15 +294,15 @@ class PipelineController:
                 "metrics": str(cfg.storage.metrics_path()),
                 "error_analysis": str(cfg.storage.error_path()),
             }
-            self._update_status(run_id, RunStatusEnum.SUCCEEDED, outputs=outputs)
+            self._update_status(run_id, RunStatusEnum.SUCCEEDED, outputs=outputs, pipeline_stage="complete")
 
         except Exception as exc:
             tb = traceback.format_exc()
             logger.error("Run %s failed: %s", run_id, tb)
             if self._is_cancel_requested(run_id):
-                self._update_status(run_id, RunStatusEnum.CANCELED, error="Run canceled by user")
+                self._update_status(run_id, RunStatusEnum.CANCELED, error="Run canceled by user", pipeline_stage="canceled")
             else:
-                self._update_status(run_id, RunStatusEnum.FAILED, error=str(exc))
+                self._update_status(run_id, RunStatusEnum.FAILED, error=str(exc), pipeline_stage="failed")
 
     def _is_cancel_requested(self, run_id: str) -> bool:
         with self._lock:
@@ -316,6 +317,7 @@ class PipelineController:
             run_status.cancel_requested = True
             if run_status.status in {RunStatusEnum.PENDING, RunStatusEnum.RUNNING}:
                 run_status.status = RunStatusEnum.CANCELED
+                run_status.pipeline_stage = "canceled"
                 run_status.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 run_status.error = "Run canceled by user"
             self._save_status(run_status)
@@ -327,6 +329,7 @@ class PipelineController:
         status: RunStatusEnum,
         error: Optional[str] = None,
         outputs: Optional[Dict[str, str]] = None,
+        pipeline_stage: Optional[str] = None,
     ) -> None:
         with self._lock:
             run_status = self._runs.get(run_id)
@@ -334,6 +337,8 @@ class PipelineController:
                 return
             run_status.status = status
             run_status.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            if pipeline_stage is not None:
+                run_status.pipeline_stage = pipeline_stage
             if error is not None:
                 run_status.error = error
             if outputs is not None:
