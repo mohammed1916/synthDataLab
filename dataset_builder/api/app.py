@@ -22,7 +22,7 @@ class RunRequest(BaseModel):
     reset_fingerprints: bool = False
 
     @validator("steering")
-    def steering_must_be_valid(cls, v: str) -> str:
+    def steering_must_be_valid(v: str) -> str:  # noqa: N805
         if v not in {"auto", "review-low", "review-all"}:
             raise ValueError("steering must be one of: auto, review-low, review-all")
         return v

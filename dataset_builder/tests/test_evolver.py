@@ -139,7 +139,6 @@ def test_multi_round_evolution_traces_lineage():
     cfg = EvolveConfig(n_rounds=2, operations=["deepen"])
     evolver = PromptEvolver(cfg, seed=5)
     evolved = evolver.evolve(["What is AI?"])
-    surviving = [e for e in evolved if not e.discarded]
     round_nums = {e.round_number for e in evolved}
     assert 1 in round_nums
     assert 2 in round_nums

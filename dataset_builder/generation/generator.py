@@ -138,9 +138,7 @@ class DatasetGenerator:
             with ThreadPoolExecutor(max_workers=max_workers) as pool:
                 for item in work:
                     futures[pool.submit(_run_one, item)] = item
-                completed = 0
-                for fut in as_completed(futures):
-                    completed += 1
+                for completed, fut in enumerate(as_completed(futures), start=1):
                     try:
                         s = fut.result()
                         if s:

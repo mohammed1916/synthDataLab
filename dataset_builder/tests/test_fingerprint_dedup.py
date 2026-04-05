@@ -149,7 +149,7 @@ class TestRunAllCLI:
         assert "DONE" in result.output
         raw = isolated_data_dir / "raw_dataset.jsonl"
         assert raw.exists()
-        records = [json.loads(l) for l in raw.read_text().splitlines() if l.strip()]
+        records = [json.loads(line) for line in raw.read_text().splitlines() if line.strip()]
         assert len(records) == 30
 
     def test_second_run_exits_cleanly_with_nothing_new(self, runner, isolated_data_dir):
@@ -164,7 +164,7 @@ class TestRunAllCLI:
 
         # raw_dataset.jsonl must still contain 30 records (NOT wiped to 0)
         raw = isolated_data_dir / "raw_dataset.jsonl"
-        records = [json.loads(l) for l in raw.read_text().splitlines() if l.strip()]
+        records = [json.loads(line) for line in raw.read_text().splitlines() if line.strip()]
         assert len(records) == 30, (
             f"raw_dataset.jsonl was wiped! Expected 30, got {len(records)}"
         )

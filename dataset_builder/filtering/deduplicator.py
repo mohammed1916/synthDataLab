@@ -81,13 +81,13 @@ class Deduplicator:
 
 def _tokenise(text: str) -> set[str]:
     """Lowercase word tokenisation with stop-word stripping."""
-    _STOP = {
+    stop_words = {
         "the", "a", "an", "is", "are", "was", "were", "in", "on", "at",
         "to", "of", "and", "or", "but", "it", "its", "that", "this",
         "for", "with", "as", "be", "by", "from",
     }
     words = re.findall(r"\b\w{2,}\b", text.lower())
-    return {w for w in words if w not in _STOP}
+    return {w for w in words if w not in stop_words}
 
 
 def _jaccard(a: set[str], b: set[str]) -> float:

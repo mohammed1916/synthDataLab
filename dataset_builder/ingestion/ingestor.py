@@ -85,9 +85,9 @@ class Ingestor:
             raise FileNotFoundError(f"File not found: {file_path}")
 
         # Guard against unreasonably large files (>50 MB)
-        _MAX_BYTES = 50 * 1024 * 1024
+        max_bytes = 50 * 1024 * 1024
         size = path.stat().st_size
-        if size > _MAX_BYTES:
+        if size > max_bytes:
             raise ValueError(
                 f"File too large ({size / 1_048_576:.1f} MB > 50 MB limit): {file_path}. "
                 "Split into smaller chunks before ingestion."
@@ -123,9 +123,9 @@ class Ingestor:
             }
         """
         path = Path(json_path)
-        _MAX_BYTES = 50 * 1024 * 1024
+        max_bytes = 50 * 1024 * 1024
         size = path.stat().st_size
-        if size > _MAX_BYTES:
+        if size > max_bytes:
             raise ValueError(
                 f"JSON file too large ({size / 1_048_576:.1f} MB > 50 MB limit): {json_path}"
             )

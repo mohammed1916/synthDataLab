@@ -13,8 +13,7 @@ LaTeX convention: inline = $...$, display = \\[...\\], multi-step = align* env.
 """
 from __future__ import annotations
 
-from .cbse_syllabus import Chapter, PROBLEM_TYPE_DESCRIPTIONS
-
+from .cbse_syllabus import PROBLEM_TYPE_DESCRIPTIONS, Chapter
 
 # ─────────────────────────────────────────────────────────────────────────────
 # System prompts

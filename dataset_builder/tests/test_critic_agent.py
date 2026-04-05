@@ -213,9 +213,6 @@ class TestLLMJudge:
 class TestCustomThresholds:
     def test_custom_pass_threshold(self):
         critic = CriticAgent(pass_threshold=0.9)
-        # A sample that would normally PASS (composite ~0.75) should now be REVIEW
-        sample = _qa_sample()
-        score = critic.score(sample)
         # The agent uses module-level constants for verdict — override via code path
         # Just verify the thresholds are stored
         assert critic.pass_threshold == 0.9

@@ -11,11 +11,12 @@ from click.testing import CliRunner
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from main import cli
+
 from cbse_math.cbse_syllabus import CLASS_12_CHAPTERS, Chapter
 from cbse_math.gap_analyzer import ChapterCoverage, CoverageReport
 from cbse_math.math_generator import MathGenerator
 from cbse_math.math_schema import MathMetadata, MathSample, validate_math_sample
-from main import cli
 
 
 def test_mock_generation_routes_item_types_without_cross_schema_mismatch(monkeypatch):

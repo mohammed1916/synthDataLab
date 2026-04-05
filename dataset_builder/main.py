@@ -26,6 +26,7 @@ Usage examples
 from __future__ import annotations
 
 import contextlib
+import datetime
 import json
 import logging
 import os
@@ -41,19 +42,19 @@ _PROJECT_ROOT = Path(__file__).parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from analysis.error_analyzer import ErrorAnalyzer
-from config import Config
-from evaluation.metrics import compute_metrics
-from evaluation.reporter import MetricsReporter
-from filtering.fingerprint_store import FingerprintStore
-from filtering.pipeline import FilteringPipeline
-from generation.evolver import EvolveConfig, PromptEvolver
-from generation.generator import DatasetGenerator
-from ingestion.ingestor import IngestionResult, Ingestor
-from schema.dataset_schema import DatasetSample
-from validation.annotation import AnnotatedSample, AnnotationLabel
-from validation.llm_reviewer import LLMReviewer
-from validation.rule_validator import RuleValidator, annotation_guidelines
+from analysis.error_analyzer import ErrorAnalyzer  # noqa: E402
+from config import Config  # noqa: E402
+from evaluation.metrics import compute_metrics  # noqa: E402
+from evaluation.reporter import MetricsReporter  # noqa: E402
+from filtering.fingerprint_store import FingerprintStore  # noqa: E402
+from filtering.pipeline import FilteringPipeline  # noqa: E402
+from generation.evolver import EvolveConfig, PromptEvolver  # noqa: E402
+from generation.generator import DatasetGenerator  # noqa: E402
+from ingestion.ingestor import IngestionResult, Ingestor  # noqa: E402
+from schema.dataset_schema import DatasetSample  # noqa: E402
+from validation.annotation import AnnotatedSample, AnnotationLabel  # noqa: E402
+from validation.llm_reviewer import LLMReviewer  # noqa: E402
+from validation.rule_validator import RuleValidator, annotation_guidelines  # noqa: E402
 
 # ── Logging setup ─────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -106,8 +107,6 @@ def _clear_checkpoint(cfg: Config) -> None:
     with contextlib.suppress(FileNotFoundError):
         p.unlink()
 
-
-import datetime
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -1046,10 +1045,7 @@ def export_cmd(dataset_path: str | None, fmt: str, output_path: str | None):
     records = _load_jsonl(src)
     out = Path(output_path) if output_path else cfg.storage.data_dir / f"export_{fmt}.jsonl"
 
-    if fmt == "argilla":
-        exported = export_argilla(records)
-    else:
-        exported = export_labelstudio(records)
+    exported = export_argilla(records) if fmt == "argilla" else export_labelstudio(records)
 
     _save_jsonl(exported, out)
     _echo(f"  Exported {len(exported)} records ({fmt}) → [cyan]{out}[/cyan]")

@@ -239,9 +239,8 @@ def _extract_pymupdf(
 
     pages_text: list[str] = []
     with fitz.open(str(path)) as doc:
-        if password:
-            if not doc.authenticate(password):
-                raise ValueError(f"Incorrect password for PDF: {path.name}")
+        if password and not doc.authenticate(password):
+            raise ValueError(f"Incorrect password for PDF: {path.name}")
 
         start = page_range[0] if page_range else 0
         end = (page_range[1] + 1) if page_range else doc.page_count

@@ -91,20 +91,20 @@ class TestDerivedStats:
 class TestThreadSafety:
     def test_concurrent_record_calls_are_consistent(self):
         """N threads each record M samples, total should equal N*M."""
-        N_THREADS = 8
-        M_SAMPLES = 20
-        tracker = LiveMetricsTracker(total=N_THREADS * M_SAMPLES, show_dashboard=False)
+        n_threads = 8
+        m_samples = 20
+        tracker = LiveMetricsTracker(total=n_threads * m_samples, show_dashboard=False)
 
         errors = []
 
         def worker():
             try:
-                for i in range(M_SAMPLES):
+                for i in range(m_samples):
                     tracker.record(f"s_{threading.get_ident()}_{i}", "qa", 0.8, 0.7, "ACCEPT")
             except Exception as e:
                 errors.append(e)
 
-        threads = [threading.Thread(target=worker) for _ in range(N_THREADS)]
+        threads = [threading.Thread(target=worker) for _ in range(n_threads)]
         with tracker:
             for t in threads:
                 t.start()
@@ -113,8 +113,8 @@ class TestThreadSafety:
 
         assert not errors, f"Thread errors: {errors}"
         s = tracker._snapshot
-        assert s.generated == N_THREADS * M_SAMPLES
-        assert s.accepted == N_THREADS * M_SAMPLES
+        assert s.generated == n_threads * m_samples
+        assert s.accepted == n_threads * m_samples
 
 
 # ── Collapse risk ─────────────────────────────────────────────────────────────

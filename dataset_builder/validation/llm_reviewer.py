@@ -145,7 +145,7 @@ class LLMReviewer:
         """
         output = sample.get("output", {})
         task_type = sample.get("task_type", "")
-        issues: List[str] = []
+        issues: list[str] = []
 
         # Per task-type quality signals
         if task_type == "qa":

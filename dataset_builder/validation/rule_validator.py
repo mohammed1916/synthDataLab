@@ -164,8 +164,8 @@ class RuleValidator:
     def _check_qa(
         self,
         annotated: AnnotatedSample,
-        sample: Dict[str, Any],
-        output: Dict[str, Any],
+        sample: dict[str, Any],
+        output: dict[str, Any],
     ) -> None:
         question = output.get("question", "")
         answer = output.get("answer", "")
@@ -202,7 +202,7 @@ class RuleValidator:
 
     @staticmethod
     def _check_extraction(
-        annotated: AnnotatedSample, output: Dict[str, Any]
+        annotated: AnnotatedSample, output: dict[str, Any]
     ) -> None:
         entities = output.get("entities")
         key_facts = output.get("key_facts")
@@ -236,7 +236,7 @@ class RuleValidator:
 
     @staticmethod
     def _check_reasoning(
-        annotated: AnnotatedSample, output: Dict[str, Any]
+        annotated: AnnotatedSample, output: dict[str, Any]
     ) -> None:
         steps = output.get("reasoning_steps", [])
         conclusion = output.get("conclusion", "")
@@ -267,12 +267,12 @@ class RuleValidator:
 
     @staticmethod
     def _check_reasoning_trace(
-        annotated: AnnotatedSample, output: Dict[str, Any]
+        annotated: AnnotatedSample, output: dict[str, Any]
     ) -> None:
         """Validate R1/o1-style reasoning trace samples."""
         think = output.get("think", "")
         answer = output.get("answer", "")
-        confidence = output.get("confidence", None)
+        confidence = output.get("confidence")
 
         # think block must contain proper tags
         if not think.strip():
@@ -309,13 +309,13 @@ class RuleValidator:
 
     @staticmethod
     def _check_preference(
-        annotated: AnnotatedSample, output: Dict[str, Any]
+        annotated: AnnotatedSample, output: dict[str, Any]
     ) -> None:
         """Validate DPO preference pair samples."""
         prompt_text = output.get("prompt", "")
         chosen = output.get("chosen", {})
         rejected = output.get("rejected", {})
-        margin = output.get("preference_margin", None)
+        margin = output.get("preference_margin")
 
         if not str(prompt_text).strip():
             annotated.reject(RejectionCode.MISSING_FIELD, "Preference: 'prompt' field is empty")

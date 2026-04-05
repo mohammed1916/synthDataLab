@@ -214,12 +214,7 @@ class MathGenerator:
         """
         from cbse_math.cbse_syllabus import chapters_for_class
         from cbse_math.gap_analyzer import GapAnalyzer
-        from cbse_math.math_prompts import (
-            build_explanation_prompt,
-            build_fill_gap_prompt,
-            build_problem_prompt,
-        )
-        from cbse_math.math_schema import MathMetadata, MathSample, validate_math_sample
+        from cbse_math.math_schema import validate_math_sample
         from cbse_math.pdf_ingestor import ingest_pdf
 
         cl = class_level or self.config.class_level

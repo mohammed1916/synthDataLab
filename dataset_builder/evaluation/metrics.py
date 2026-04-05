@@ -275,9 +275,9 @@ def _collapse_risk(
     Returns (risk_score, warning_string | None).
     """
     # Entropy component: 0 when at or below floor, 1 when fully healthy (≥ 14 bits)
-    _MAX_ENTROPY = 14.0
+    max_entropy = 14.0
     entropy_health = min(max(vocab_entropy - _COLLAPSE_ENTROPY_FLOOR, 0) /
-                         (_MAX_ENTROPY - _COLLAPSE_ENTROPY_FLOOR), 1.0)
+                         (max_entropy - _COLLAPSE_ENTROPY_FLOOR), 1.0)
     entropy_risk = 1.0 - entropy_health
 
     # Diversity component: 0 when TTR ≥ 0.65 (healthy), 1 when TTR ≤ 0.35 (critical)

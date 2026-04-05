@@ -134,9 +134,6 @@ class MetricsReporter:
     @staticmethod
     def _print_report(raw: DatasetMetrics, filtered: DatasetMetrics) -> None:
         try:
-            from rich import box
-            from rich.console import Console
-            from rich.table import Table
             _rich_table(raw, filtered)
         except ImportError:
             _plain_table(raw, filtered)

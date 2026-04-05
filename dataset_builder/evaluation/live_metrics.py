@@ -342,7 +342,10 @@ class LiveMetricsTracker:
             d.add_column(justify="right")
             d.add_column(justify="right", style="dim")
             d.add_column()
-            _mk_bar = lambda n: ("█" * max(0, int(n / gen * 10))) if n > 0 else ""
+
+            def _mk_bar(n: int) -> str:
+                return ("█" * max(0, int(n / gen * 10))) if n > 0 else ""
+
             d.add_row(
                 "[green]✓ ACCEPT[/green]", str(snap.accepted),
                 f"({snap.accepted / gen:.0%})", f"[green]{_mk_bar(snap.accepted)}[/green]",

@@ -494,7 +494,7 @@ class MockLLMClient(BaseLLMClient):
         words = text.split()
         entities = []
         seen = set()
-        for i, word in enumerate(words):
+        for _i, word in enumerate(words):
             clean = re.sub(r"[^\w]", "", word)
             if (
                 len(clean) > 2

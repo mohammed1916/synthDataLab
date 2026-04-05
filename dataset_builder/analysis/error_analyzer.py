@@ -94,7 +94,7 @@ class ErrorAnalyzer:
     # Maximum examples to include per error code
     MAX_EXAMPLES_PER_CODE = 2
 
-    def analyze(self, annotated: List[AnnotatedSample]) -> ErrorReport:
+    def analyze(self, annotated: list[AnnotatedSample]) -> ErrorReport:
         """Build a full ErrorReport from a list of annotated samples."""
         report = ErrorReport()
 
@@ -177,8 +177,8 @@ class ErrorAnalyzer:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _auto_correct(
-    sample: Dict[str, Any], error_code: str, error_message: str
-) -> tuple[Dict[str, Any], bool]:
+    sample: dict[str, Any], error_code: str, error_message: str
+) -> tuple[dict[str, Any], bool]:
     """
     Attempt a deterministic fix for common error types.
 
