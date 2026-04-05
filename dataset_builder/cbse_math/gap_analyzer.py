@@ -42,6 +42,13 @@ class SubtopicCoverage:
     covered: bool
     matched_keywords: list[str] = field(default_factory=list)
 
+    def to_dict(self) -> dict:
+        return {
+            "subtopic": self.subtopic,
+            "covered": self.covered,
+            "matched_keywords": self.matched_keywords,
+        }
+
 
 @dataclass
 class ChapterCoverage:
@@ -52,6 +59,26 @@ class ChapterCoverage:
     uncovered_subtopics: list[str] = field(default_factory=list)
     matched_keywords: list[str] = field(default_factory=list)
     example_count: int = 0                         # number of example problems found
+
+    def to_dict(self) -> dict:
+        return {
+            "chapter": {
+                "chapter_id": self.chapter.chapter_id,
+                "title": self.chapter.title,
+                "unit": self.chapter.unit,
+                "class_level": self.chapter.class_level,
+                "marks": self.chapter.marks,
+                "subtopics": self.chapter.subtopics,
+                "problem_types": self.chapter.problem_types,
+                "keywords": self.chapter.keywords,
+            },
+            "score": self.score,
+            "status": self.status,
+            "subtopic_details": [s.to_dict() for s in self.subtopic_details],
+            "uncovered_subtopics": self.uncovered_subtopics,
+            "matched_keywords": self.matched_keywords,
+            "example_count": self.example_count,
+        }
 
 
 @dataclass
@@ -106,6 +133,21 @@ class CoverageReport:
             for sub in cc.uncovered_subtopics:
                 lines.append(f"  [{cc.chapter.chapter_id}] {cc.chapter.title} — missing: {sub}")
         return "\n".join(lines)
+
+    def to_dict(self) -> dict:
+        return {
+            "class_level": self.class_level,
+            "total_chapters": self.total_chapters,
+            "covered_count": self.covered_count,
+            "partial_count": self.partial_count,
+            "gap_count": self.gap_count,
+            "overall_coverage_pct": self.overall_coverage_pct,
+            "chapter_coverages": [c.to_dict() for c in self.chapter_coverages],
+            "prioritised_gaps": [
+                {"chapter_id": cc.chapter.chapter_id, "chapter_title": cc.chapter.title, "subtopic": sub}
+                for cc, sub in self.prioritised_gaps()
+            ],
+        }
 
 
 # ─────────────────────────────────────────────────────────────────────────────

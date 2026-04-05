@@ -180,6 +180,8 @@ python main.py math-generate [INPUTS...] [OPTIONS]
 | `--gap-fills`              | `2`                  | Gap-fill problems per uncovered subtopic |
 | `--model MODEL`            | `qwen3:4b`           | Ollama model (ignored in mock mode)      |
 | `--output PATH`            | `data/math_dataset.jsonl` | Output JSONL path                   |
+| `--valid-only / --all`     | `--all`              | Save only schema-valid items              |
+| `--summary-output PATH`    | none                 | Save generation summary JSON              |
 
 ### Examples
 
@@ -204,6 +206,7 @@ python main.py math-gap-analysis INPUTS... [OPTIONS]
 | Flag            | Default | Description                |
 | --------------- | ------- | -------------------------- |
 | `--class-level` | `12`    | CBSE class (`10` or `12`) |
+| `--output PATH` | none    | Save coverage report JSON  |
 
 ### Example
 

@@ -117,3 +117,53 @@ def test_math_gap_analysis_parses_json_input(tmp_path):
     assert result.exit_code == 0, result.output
     assert "Ingested:" in result.output
     assert "Coverage Report — Class 12" in result.output
+
+
+def test_math_generate_valid_only_and_summary_output(tmp_path, monkeypatch):
+    # Force invalid mock payloads so valid-only mode writes zero records.
+    monkeypatch.setattr("cbse_math.math_generator.random.random", lambda: 0.0)
+
+    out_path = tmp_path / "math_valid_only.jsonl"
+    summary_path = tmp_path / "math_summary.json"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "math-generate",
+            "--mock",
+            "--class-level",
+            "12",
+            "--problems-per-subtopic",
+            "1",
+            "--gap-fills",
+            "0",
+            "--valid-only",
+            "--output",
+            str(out_path),
+            "--summary-output",
+            str(summary_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert out_path.exists()
+    assert out_path.read_text(encoding="utf-8").strip() == ""
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["valid_only"] is True
+    assert summary["saved_count"] == 0
+    assert summary["invalid_count"] > 0
+
+
+def test_math_gap_analysis_output_writes_json_report(tmp_path):
+    src = tmp_path / "gap_input.txt"
+    src.write_text("matrix determinant inverse matrix solved example", encoding="utf-8")
+    out_path = tmp_path / "gap_report.json"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["math-gap-analysis", str(src), "--class-level", "12", "--output", str(out_path)],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["class_level"] == 12
+    assert "chapter_coverages" in payload
+    assert "prioritised_gaps" in payload

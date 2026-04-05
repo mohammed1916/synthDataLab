@@ -1218,6 +1218,17 @@ def health_check_cmd(mock: bool):
     help="Output JSONL path. Default: data/math_dataset.jsonl",
 )
 @click.option(
+    "--valid-only/--all",
+    default=False,
+    show_default=True,
+    help="When enabled, save only schema-valid items to output.",
+)
+@click.option(
+    "--summary-output",
+    default=None,
+    help="Optional path to save generation summary JSON.",
+)
+@click.option(
     "--model",
     default="qwen3:4b",
     show_default=True,
@@ -1230,6 +1241,8 @@ def math_generate_cmd(
     problems_per_subtopic: int,
     gap_fills: int,
     output_path: str | None,
+    valid_only: bool,
+    summary_output: str | None,
     model: str,
 ):
     """
@@ -1270,19 +1283,44 @@ def math_generate_cmd(
         f"  LLM       : {'mock' if mock else model}\n"
         f"  Inputs    : {list(inputs) or ['(syllabus descriptions only)']}\n"
         f"  Output    : {out}\n"
+        f"  Save mode : {'valid-only' if valid_only else 'all samples'}\n"
     )
 
     gen = MathGenerator(mock=mock, model=model, config=cfg)
-    samples = gen.run(inputs=list(inputs), class_level=cl, output_path=out)
+    samples = gen.run(inputs=list(inputs), class_level=cl, output_path=None)
 
     valid = [s for s in samples if not s.get("_validation_errors")]
     invalid = [s for s in samples if s.get("_validation_errors")]
+    to_save = valid if valid_only else samples
+    _save_jsonl(to_save, out)
 
     _echo(
         f"\n  [bold]Generated[/bold] {len(samples)} items  "
         f"([green]{len(valid)} valid[/green]  [yellow]{len(invalid)} invalid[/yellow])"
     )
+    if valid_only:
+        _echo(f"  Saved valid-only subset: [green]{len(to_save)}[/green] items")
     _echo(f"  Saved → [cyan]{out}[/cyan]")
+
+    if summary_output:
+        summary_path = Path(summary_output)
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_payload = {
+            "class_level": cl,
+            "model": "mock" if mock else model,
+            "input_count": len(inputs),
+            "total_generated": len(samples),
+            "valid_count": len(valid),
+            "invalid_count": len(invalid),
+            "saved_count": len(to_save),
+            "valid_only": valid_only,
+            "output_path": str(out),
+        }
+        summary_path.write_text(
+            json.dumps(summary_payload, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        _echo(f"  Summary → [cyan]{summary_path}[/cyan]")
 
 
 @cli.command("math-gap-analysis")
@@ -1294,7 +1332,13 @@ def math_generate_cmd(
     type=click.Choice(["10", "12"], case_sensitive=False),
     help="CBSE class level to analyse against (supported: 10, 12).",
 )
-def math_gap_analysis_cmd(inputs: tuple[str, ...], class_level: str):
+@click.option(
+    "--output",
+    "output_path",
+    default=None,
+    help="Optional path to save coverage report JSON.",
+)
+def math_gap_analysis_cmd(inputs: tuple[str, ...], class_level: str, output_path: str | None):
     """
     Analyse syllabus coverage gaps in provided NCERT / past-paper files.
 
@@ -1353,6 +1397,12 @@ def math_gap_analysis_cmd(inputs: tuple[str, ...], class_level: str):
         _echo(f"[bold]{len(gaps)} gap(s) identified — run 'math-generate' to fill them.[/bold]")
     else:
         _echo("[bold green]No significant gaps found — good coverage![/bold green]")
+
+    if output_path:
+        out = Path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(report.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+        _echo(f"  Coverage JSON saved → [cyan]{out}[/cyan]")
 
 
 @cli.command("math-latex-preview")
