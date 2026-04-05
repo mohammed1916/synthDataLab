@@ -19,7 +19,6 @@ dependencies = [
     "fastapi>=0.110.0",
     "uvicorn>=0.23.0",
     "SQLAlchemy>=2.0.0",
-    "psycopg[binary]>=3.0",
 ]
 
 [project.optional-dependencies]

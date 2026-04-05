@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Iterable
 
 from sqlalchemy import (
@@ -72,7 +73,19 @@ class DatabaseManager:
         self._session_factory = None
 
         if self.enabled:
-            self._engine = create_engine(self.database_url, future=True)
+            connect_args = {}
+            if self.database_url.startswith("sqlite"):
+                sqlite_path = self.database_url.replace("sqlite://", "", 1)
+                db_path = Path(sqlite_path)
+                if db_path.parent:
+                    db_path.parent.mkdir(parents=True, exist_ok=True)
+                connect_args = {"check_same_thread": False}
+
+            self._engine = create_engine(
+                self.database_url,
+                future=True,
+                connect_args=connect_args or None,
+            )
             self._session_factory = sessionmaker(bind=self._engine, future=True)
 
     @classmethod

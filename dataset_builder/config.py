@@ -127,7 +127,12 @@ class StorageConfig:
 class DatabaseConfig:
     """Database connection settings for metadata and pipeline persistence."""
 
-    url: str = field(default_factory=lambda: os.getenv("DATABASE_URL", ""))
+    url: str = field(
+        default_factory=lambda: os.getenv(
+            "DATABASE_URL",
+            f"sqlite:///{BASE_DIR / 'data' / 'synthdatalab.sqlite3'}",
+        )
+    )
     pool_size: int = 5
     max_overflow: int = 10
 
