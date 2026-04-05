@@ -15,6 +15,8 @@ export default function App() {
   const [selectedRun, setSelectedRun] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [logs, setLogs] = useState('');
+  const [health, setHealth] = useState(null);
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('');
 
@@ -27,13 +29,34 @@ export default function App() {
     }
   }
 
+  async function fetchHealth() {
+    try {
+      const res = await axios.get('/health');
+      setHealth(res.data);
+    } catch (err) {
+      console.error('fetchHealth', err);
+      setHealth({ database: { enabled: false, status: 'unavailable' } });
+    }
+  }
+
+  async function fetchRunSummary(runId) {
+    try {
+      const res = await axios.get(`${API_BASE}/runs/${runId}/summary`);
+      setSummary(res.data);
+    } catch (err) {
+      setSummary(null);
+    }
+  }
+
   async function fetchRunDetails(runId) {
     try {
       const res = await axios.get(`${API_BASE}/runs/${runId}`);
       setSelectedRun(res.data);
+      await fetchRunSummary(runId);
     } catch (err) {
       console.error('fetchRunDetails', err);
       setSelectedRun(null);
+      setSummary(null);
     }
   }
 
@@ -148,6 +171,7 @@ export default function App() {
   };
 
   useEffect(() => {
+    fetchHealth();
     fetchRuns();
   }, []);
 
@@ -176,8 +200,8 @@ export default function App() {
           <strong>{runs.filter((r) => r.status === 'failed').length}</strong>
         </div>
         <div className="stat-card">
-          <h3>Canceled</h3>
-          <strong>{runs.filter((r) => r.status === 'canceled').length}</strong>
+          <h3>Database</h3>
+          <strong>{health ? (health.database?.enabled ? health.database.status : 'disabled') : 'loading'}</strong>
         </div>
       </div>
 
@@ -348,6 +372,38 @@ export default function App() {
               <p className="pipeline-current">
                 Current stage: <strong>{normalizedSelectedStage || 'unknown'}</strong>
               </p>
+              <div className="summary-grid">
+                <div>
+                  <strong>Inputs</strong>
+                  <p>{selectedRun.input_text ? selectedRun.input_text.slice(0, 220) : selectedRun.input_path || 'None'}</p>
+                </div>
+                <div>
+                  <strong>Run details</strong>
+                  <p>Workers: {selectedRun.workers}</p>
+                  <p>Agent: {String(selectedRun.agent)}</p>
+                  <p>Steering: {selectedRun.steering}</p>
+                  <p>Threshold: {selectedRun.threshold}</p>
+                </div>
+                <div>
+                  <strong>Dataset counts</strong>
+                  <p>Raw: {summary?.raw ?? '-'}</p>
+                  <p>Annotated: {summary?.annotated ?? '-'}</p>
+                  <p>Filtered: {summary?.filtered ?? '-'}</p>
+                </div>
+              </div>
+              <div className="artifact-links">
+                {selectedRun.outputs && (
+                  <>
+                    <strong>Artifacts</strong>
+                    <ul>
+                      {Object.entries(selectedRun.outputs).map(([label, path]) => (
+                        <li key={label}>{label}: {path}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+              <h3>Run payload</h3>
               <pre className="details-json">{JSON.stringify(selectedRun, null, 2)}</pre>
               <h3>Logs</h3>
               <pre className="logs">{logs || 'No logs yet'}</pre>

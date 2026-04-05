@@ -146,6 +146,45 @@ body {
   margin-bottom: 12px;
 }
 
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.summary-grid strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #1f2a44;
+}
+
+.summary-grid p {
+  margin: 0 0 8px;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.artifact-links {
+  margin-bottom: 14px;
+}
+
+.artifact-links strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.artifact-links ul {
+  padding-left: 18px;
+  margin: 0;
+}
+
+.artifact-links li {
+  margin-bottom: 6px;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
 .panel-header {
   display: flex;
   justify-content: space-between;

@@ -54,7 +54,21 @@ app.add_middleware(
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-    return {"status": "ok", "service": "synthdatalab"}
+    result: dict[str, Any] = {"status": "ok", "service": "synthdatalab"}
+    db_health = getattr(controller, "_db", None)
+    if db_health is not None and getattr(db_health, "enabled", False):
+        result["database"] = db_health.health()
+    else:
+        result["database"] = {"enabled": False}
+    return result
+
+
+@app.get("/api/runs/{run_id}/summary")
+def run_summary(run_id: str):
+    summary = controller.get_run_summary(run_id)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="Run summary not found")
+    return summary
 
 
 @app.post("/api/runs", status_code=202, response_model=RunResponse)

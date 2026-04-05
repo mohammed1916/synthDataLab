@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from dataset_builder.config import Config
+from dataset_builder.db import DatabaseManager
 from dataset_builder.ingestion.ingestor import Ingestor
 from dataset_builder.main import (
     _save_jsonl,
@@ -77,6 +78,9 @@ class PipelineController:
     def __init__(self):
         self._lock = threading.Lock()
         self._runs: dict[str, RunStatus] = {}
+        self._db = DatabaseManager.from_config(Config())
+        if self._db.enabled:
+            self._db.create_tables()
         self._load_existing_runs()
 
     def _run_base_path(self) -> Path:
@@ -92,8 +96,71 @@ class PipelineController:
         path = self._status_path(run_status.run_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(run_status.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+        if self._db.enabled:
+            self._db.save_run(run_status.to_dict())
+
+    def _save_stage_samples(self, run_id: str, stage: str, samples: list[dict[str, Any]]) -> None:
+        if not self._db.enabled or not samples:
+            return
+        try:
+            self._db.save_samples(run_id, stage, samples)
+        except Exception as exc:
+            logger.warning("Unable to persist %s samples for run %s to DB: %s", stage, run_id, exc)
+
+    def get_run_summary(self, run_id: str) -> dict[str, int] | None:
+        if self._db.enabled:
+            return self._db.sample_counts(run_id)
+
+        run_dir = self._run_path(run_id)
+        if not run_dir.exists():
+            return None
+
+        def _count(path: Path) -> int:
+            if not path.exists():
+                return 0
+            count = 0
+            with path.open(encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        count += 1
+            return count
+
+        return {
+            "raw": _count(run_dir / "raw_dataset.jsonl"),
+            "annotated": _count(run_dir / "annotated_dataset.jsonl"),
+            "filtered": _count(run_dir / "filtered_dataset.jsonl"),
+        }
 
     def _load_existing_runs(self) -> None:
+        if self._db.enabled:
+            runs = self._db.load_runs()
+            for raw in runs:
+                try:
+                    run_status = RunStatus(
+                        run_id=raw.get("run_id", ""),
+                        created_at=raw.get("created_at", ""),
+                        updated_at=raw.get("updated_at", ""),
+                        status=RunStatusEnum(raw.get("status", "failed")),
+                        input_path=raw.get("input_path"),
+                        input_text=raw.get("input_text"),
+                        mock=raw.get("mock", False),
+                        workers=raw.get("workers", 1),
+                        agent=raw.get("agent", False),
+                        steering=raw.get("steering", "auto"),
+                        threshold=float(raw.get("threshold", 0.7)),
+                        force=raw.get("force", False),
+                        reset_fingerprints=raw.get("reset_fingerprints", False),
+                        cancel_requested=raw.get("cancel_requested", False),
+                        error=raw.get("error"),
+                        run_dir=raw.get("run_dir"),
+                        outputs=raw.get("outputs", {}),
+                        pipeline_stage=raw.get("pipeline_stage", "pending"),
+                    )
+                    self._runs[run_status.run_id] = run_status
+                except Exception:
+                    logger.warning("Ignoring corrupt run status loaded from DB for %s", raw.get("run_id"))
+            return
+
         root = self._run_base_path() / "runs"
         if not root.exists():
             return
@@ -241,6 +308,7 @@ class PipelineController:
                 raw_samples = step_generate(cfg, ingestion_results)
 
             _save_jsonl([s.to_dict() for s in raw_samples], cfg.storage.raw_path())
+            self._save_stage_samples(run_id, "raw", [s.to_dict() for s in raw_samples])
 
             if self._is_cancel_requested(run_id):
                 self._update_status(run_id, RunStatusEnum.CANCELED, error="Run canceled after generation", pipeline_stage="canceled")
@@ -249,10 +317,12 @@ class PipelineController:
             # 3. Validate
             self._update_status(run_id, RunStatusEnum.RUNNING, pipeline_stage="validate")
             annotated = step_validate(cfg, raw_samples)
+            self._save_stage_samples(run_id, "annotated", [s.to_dict() for s in annotated])
 
             # 4. Filter
             self._update_status(run_id, RunStatusEnum.RUNNING, pipeline_stage="filter")
             filtered, filter_report = step_filter(cfg, annotated)
+            self._save_stage_samples(run_id, "filtered", [s.to_dict() for s in filtered])
 
             if self._is_cancel_requested(run_id):
                 self._update_status(run_id, RunStatusEnum.CANCELED, error="Run canceled after filtering", pipeline_stage="canceled")

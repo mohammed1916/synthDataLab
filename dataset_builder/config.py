@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import uuid
 from dataclasses import dataclass, field
@@ -123,6 +124,15 @@ class StorageConfig:
 # ──────────────────────────────────────────────────────────────────────────────
 
 @dataclass
+class DatabaseConfig:
+    """Database connection settings for metadata and pipeline persistence."""
+
+    url: str = field(default_factory=lambda: os.getenv("DATABASE_URL", ""))
+    pool_size: int = 5
+    max_overflow: int = 10
+
+
+@dataclass
 class Config:
     """Top-level configuration object passed through the pipeline."""
 
@@ -131,6 +141,7 @@ class Config:
     filtering: FilteringConfig = field(default_factory=FilteringConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)
     evolution: EvolutionConfig = field(default_factory=EvolutionConfig)
+    database: DatabaseConfig = field(default_factory=DatabaseConfig)
 
     # ── Run identity ──────────────────────────────────────────────────────────
     # These are populated automatically; override only for testing/reproducibility.
