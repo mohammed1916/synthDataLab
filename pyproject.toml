@@ -32,6 +32,10 @@ image = [
     "Pillow>=9.0.0",
     "pytesseract>=0.3.10",
 ]
+math = [
+    "pymupdf>=1.24.0",       # PDF text extraction (fast, accurate; pip install pymupdf)
+    "pdfminer.six>=20221105", # Pure-Python PDF fallback
+]
 
 [project.scripts]
 synthdatalab = "dataset_builder.main:cli"
@@ -67,7 +71,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["config", "ingestion", "generation", "validation", "filtering", "evaluation", "schema", "analysis", "prompts"]
+known-first-party = ["config", "ingestion", "generation", "validation", "filtering", "evaluation", "schema", "analysis", "prompts", "cbse_math"]
 
 [tool.ruff.format]
 quote-style = "double"

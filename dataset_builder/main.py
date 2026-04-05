@@ -1180,6 +1180,230 @@ def health_check_cmd(mock: bool):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# CBSE Mathematics commands
+# ─────────────────────────────────────────────────────────────────────────────
+
+@cli.command("math-generate")
+@click.argument("inputs", nargs=-1, required=False)
+@click.option(
+    "--class-level",
+    default=12,
+    show_default=True,
+    type=click.Choice(["9", "10", "11", "12"], case_sensitive=False),
+    help="CBSE class level to generate for.",
+)
+@click.option(
+    "--mock/--no-mock",
+    default=False,
+    show_default=True,
+    help="Use offline mock LLM (no Ollama required).",
+)
+@click.option(
+    "--problems-per-subtopic",
+    default=2,
+    show_default=True,
+    type=click.IntRange(1, 20),
+    help="Number of practice problems to generate per subtopic.",
+)
+@click.option(
+    "--gap-fills",
+    default=2,
+    show_default=True,
+    type=click.IntRange(0, 20),
+    help="Gap-fill problems to generate per uncovered subtopic.",
+)
+@click.option(
+    "--output", "output_path",
+    default=None,
+    help="Output JSONL path. Default: data/math_dataset.jsonl",
+)
+@click.option(
+    "--model",
+    default="qwen3:4b",
+    show_default=True,
+    help="Ollama model to use for generation.",
+)
+def math_generate_cmd(
+    inputs: tuple[str, ...],
+    class_level: str,
+    mock: bool,
+    problems_per_subtopic: int,
+    gap_fills: int,
+    output_path: str | None,
+    model: str,
+):
+    """
+    Generate CBSE Mathematics problems, explanations, and gap-fill items.
+
+    INPUTS can be one or more PDF files (NCERT chapters, past papers), .txt,
+    or .json files.  If no inputs are given, generation runs from the CBSE
+    syllabus definitions alone (mock content only).
+
+    Examples::
+
+        # Offline mock run for Class 12
+        python main.py math-generate --mock --class-level 12
+
+        # Real generation from NCERT PDF + past paper
+        python main.py math-generate ncert_class12.pdf prev_year_2024.pdf \\
+            --class-level 12 --model qwen3:4b
+
+        # Class 10 with 3 problems per subtopic
+        python main.py math-generate textbook.pdf --class-level 10 \\
+            --problems-per-subtopic 3 --mock
+    """
+    from cbse_math.math_generator import MathGenConfig, MathGenerator
+
+    _header("CBSE MATH GENERATION")
+    cl = int(class_level)
+
+    cfg = MathGenConfig(
+        class_level=cl,
+        problems_per_subtopic=problems_per_subtopic,
+        gap_fills_per_gap=gap_fills,
+    )
+
+    out = Path(output_path) if output_path else _PROJECT_ROOT / "data" / "math_dataset.jsonl"
+
+    _echo(
+        f"  Class     : {cl}\n"
+        f"  LLM       : {'mock' if mock else model}\n"
+        f"  Inputs    : {list(inputs) or ['(syllabus descriptions only)']}\n"
+        f"  Output    : {out}\n"
+    )
+
+    gen = MathGenerator(mock=mock, model=model, config=cfg)
+    samples = gen.run(inputs=list(inputs), class_level=cl, output_path=out)
+
+    valid = [s for s in samples if not s.get("_validation_errors")]
+    invalid = [s for s in samples if s.get("_validation_errors")]
+
+    _echo(
+        f"\n  [bold]Generated[/bold] {len(samples)} items  "
+        f"([green]{len(valid)} valid[/green]  [yellow]{len(invalid)} invalid[/yellow])"
+    )
+    _echo(f"  Saved → [cyan]{out}[/cyan]")
+
+
+@cli.command("math-gap-analysis")
+@click.argument("inputs", nargs=-1, required=True)
+@click.option(
+    "--class-level",
+    default=12,
+    show_default=True,
+    type=click.Choice(["9", "10", "11", "12"], case_sensitive=False),
+    help="CBSE class level to analyse against.",
+)
+def math_gap_analysis_cmd(inputs: tuple[str, ...], class_level: str):
+    """
+    Analyse syllabus coverage gaps in provided NCERT / past-paper files.
+
+    INPUTS: one or more .pdf, .txt, or .json files.
+
+    Prints a coverage report showing which chapters and subtopics are
+    well-covered, partially covered, or entirely missing from your source
+    materials.
+
+    Example::
+
+        python main.py math-gap-analysis ncert_class12.pdf --class-level 12
+    """
+    from cbse_math.gap_analyzer import GapAnalyzer
+    from cbse_math.pdf_ingestor import ingest_pdf
+
+    _header("CBSE MATH GAP ANALYSIS")
+    cl = int(class_level)
+
+    all_chunks: list[str] = []
+    for inp in inputs:
+        path = Path(inp)
+        try:
+            if path.suffix.lower() == ".pdf":
+                records = ingest_pdf(str(path))
+                all_chunks.extend(r["content"] for r in records)
+            else:
+                all_chunks.append(path.read_text(encoding="utf-8", errors="replace"))
+            _echo(f"  Ingested: {path.name}")
+        except Exception as exc:
+            _echo(f"  [yellow]Could not ingest {path.name}: {exc}[/yellow]")
+
+    if not all_chunks:
+        _echo("[red]No text could be extracted from inputs.[/red]")
+        sys.exit(1)
+
+    analyzer = GapAnalyzer(class_level=cl)  # type: ignore[arg-type]
+    report = analyzer.analyse(all_chunks)
+
+    _echo(f"\n{report.summary()}\n")
+
+    # Print prioritised gap list
+    gaps = report.prioritised_gaps()
+    if gaps:
+        _echo(f"[bold]{len(gaps)} gap(s) identified — run 'math-generate' to fill them.[/bold]")
+    else:
+        _echo("[bold green]No significant gaps found — good coverage![/bold green]")
+
+
+@cli.command("math-latex-preview")
+@click.argument("dataset_path")
+@click.option(
+    "--limit",
+    default=5,
+    show_default=True,
+    type=click.IntRange(1, 100),
+    help="Number of items to preview.",
+)
+def math_latex_preview_cmd(dataset_path: str, limit: int):
+    """
+    Pretty-print LaTeX content from a math dataset JSONL file.
+
+    Renders each item's question, answer, and solution to the terminal.
+    Useful for quickly inspecting generated problems.
+
+    Example::
+
+        python main.py math-latex-preview data/math_dataset.jsonl --limit 10
+    """
+    path = Path(dataset_path)
+    if not path.exists():
+        _echo(f"[red]File not found: {path}[/red]")
+        sys.exit(1)
+
+    records = _load_jsonl(path)[:limit]
+    _header(f"LaTeX Preview — {path.name} (first {len(records)} items)")
+
+    for i, rec in enumerate(records, 1):
+        item_type = rec.get("item_type", "?")
+        chapter = rec.get("chapter_title", "?")
+        subtopic = rec.get("subtopic", "?")
+        difficulty = rec.get("difficulty", "?")
+        marks = rec.get("marks", "?")
+        content = rec.get("content", {})
+
+        _echo(
+            f"\n[bold cyan]── Item {i} ──[/bold cyan]  "
+            f"[dim]{item_type}  |  {chapter}  |  {subtopic}  |  {difficulty}  |  {marks}m[/dim]"
+        )
+
+        if item_type == "problem":
+            _echo(f"[bold]Q:[/bold] {content.get('question_latex', '(none)')}")
+            _echo(f"[bold]A:[/bold] {content.get('answer_latex', '(none)')}")
+            hints = content.get("hints", [])
+            if hints:
+                _echo(f"[dim]Hint 1: {hints[0]}[/dim]")
+
+        elif item_type == "explanation":
+            _echo(f"[bold]Concept:[/bold] {str(content.get('concept_latex', '(none)'))[:300]}")
+            for fml in content.get("key_formulas", [])[:2]:
+                _echo(f"  Formula: {fml}")
+
+        elif item_type == "fill_gap":
+            _echo(f"[bold]Gap:[/bold] {content.get('gap_description', '(none)')}")
+            _echo(f"[bold]Q:[/bold] {content.get('question_latex', '(none)')}")
+            _echo(f"[bold]A:[/bold] {content.get('answer_latex', '(none)')}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Entry point
 # ─────────────────────────────────────────────────────────────────────────────
 
