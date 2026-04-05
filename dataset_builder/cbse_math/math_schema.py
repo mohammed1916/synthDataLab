@@ -38,7 +38,7 @@ MATH_SAMPLE_SCHEMA: dict[str, Any] = {
     "properties": {
         "id":            {"type": "string", "minLength": 1},
         "item_type":     {"type": "string", "enum": ["problem", "explanation", "fill_gap"]},
-        "class_level":   {"type": "integer", "enum": [9, 10, 11, 12]},
+        "class_level":   {"type": "integer", "enum": [10, 12]},
         "chapter_id":    {"type": "string", "minLength": 1},
         "chapter_title": {"type": "string", "minLength": 1},
         "subtopic":      {"type": "string", "minLength": 1},

@@ -101,7 +101,7 @@ This system operationalises those practices in a modular, runnable Python pipeli
 | `filtering/`  | 5-stage quality pipeline; cross-run SHA-256 fingerprint deduplication                                            |
 | `evaluation/` | 10+ quantitative metrics; live dashboard; Argilla + LabelStudio export                                           |
 | `analysis/`   | Error categorisation, frequency statistics, auto-correction examples                                             |
-| `main.py`     | CLI with 13 commands; `run-all` runs the full pipeline with versioned run dirs                                   |
+| `main.py`     | CLI with 16 commands (includes CBSE math tools); `run-all` runs the full pipeline with versioned run dirs       |
 
 ---
 

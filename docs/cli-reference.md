@@ -162,6 +162,73 @@ python main.py generate-agent --workers 4 --threshold 0.80
 
 ---
 
+## `math-generate`
+
+Generate CBSE math items (`problem`, `explanation`, `fill_gap`) from PDFs/text/JSON.
+
+```
+python main.py math-generate [INPUTS...] [OPTIONS]
+```
+
+### Options
+
+| Flag                       | Default              | Description                              |
+| -------------------------- | -------------------- | ---------------------------------------- |
+| `--class-level`            | `12`                 | CBSE class (`10` or `12`)               |
+| `--mock / --no-mock`       | `--no-mock`          | Use offline mock LLM                     |
+| `--problems-per-subtopic`  | `2`                  | Practice problems per subtopic           |
+| `--gap-fills`              | `2`                  | Gap-fill problems per uncovered subtopic |
+| `--model MODEL`            | `qwen3:4b`           | Ollama model (ignored in mock mode)      |
+| `--output PATH`            | `data/math_dataset.jsonl` | Output JSONL path                   |
+
+### Examples
+
+```bash
+python main.py math-generate --mock --class-level 12
+python main.py math-generate ncert12.pdf pyq2024.pdf --class-level 12 --model qwen3:4b
+python main.py math-generate textbook10.pdf --class-level 10 --problems-per-subtopic 3 --mock
+```
+
+---
+
+## `math-gap-analysis`
+
+Analyze syllabus coverage from one or more `.pdf`, `.txt`, or `.json` files.
+
+```
+python main.py math-gap-analysis INPUTS... [OPTIONS]
+```
+
+### Options
+
+| Flag            | Default | Description                |
+| --------------- | ------- | -------------------------- |
+| `--class-level` | `12`    | CBSE class (`10` or `12`) |
+
+### Example
+
+```bash
+python main.py math-gap-analysis ncert12.pdf --class-level 12
+```
+
+---
+
+## `math-latex-preview`
+
+Preview LaTeX fields from a generated math JSONL file.
+
+```
+python main.py math-latex-preview DATASET_PATH [--limit N]
+```
+
+### Example
+
+```bash
+python main.py math-latex-preview data/math_dataset.jsonl --limit 10
+```
+
+---
+
 ## `ingest`
 
 Normalise a single file and write chunks to `data/ingested.jsonl`.

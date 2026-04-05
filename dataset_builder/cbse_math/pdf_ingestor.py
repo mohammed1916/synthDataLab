@@ -15,7 +15,7 @@ with install instructions rather than failing silently.
 
 Usage
 -----
-    from math.pdf_ingestor import ingest_pdf
+    from cbse_math.pdf_ingestor import ingest_pdf
 
     chunks = ingest_pdf("ncert_class12_maths.pdf", source_name="NCERT Class 12")
     # Returns list[IngestionResult] with math-aware text chunks

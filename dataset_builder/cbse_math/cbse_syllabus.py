@@ -1,5 +1,5 @@
 """
-cbse_syllabus.py — CBSE Mathematics syllabus registry for Classes 9–12.
+cbse_syllabus.py — CBSE Mathematics syllabus registry for Classes 10 and 12.
 
 Structure
 ---------
@@ -7,7 +7,7 @@ Each entry maps to one CBSE unit/chapter with:
   - chapter id       : unique slug
   - title            : official NCERT chapter name
   - unit             : parent unit name (for marks calculation)
-  - class_level      : 9 | 10 | 11 | 12
+  - class_level      : 10 | 12
   - marks            : typical weightage (may vary by year; 2024–25 pattern)
   - subtopics        : list of specific subtopics / learning outcomes
   - problem_types    : typical CBSE question formats for this chapter
@@ -17,14 +17,14 @@ Source references
 -----------------
   CBSE Class 12 Maths Syllabus 2024–25 (Board Notice 23 Aug 2024)
   CBSE Class 10 Maths Basic/Standard Syllabus 2024–25
-  NCERT Textbook chapter headings (Classes 9–12)
+  NCERT Textbook chapter headings (Classes 10 and 12)
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Literal
 
-ClassLevel = Literal[9, 10, 11, 12]
+ClassLevel = Literal[10, 12]
 
 
 @dataclass

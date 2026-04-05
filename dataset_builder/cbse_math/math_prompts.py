@@ -22,7 +22,7 @@ from .cbse_syllabus import Chapter, PROBLEM_TYPE_DESCRIPTIONS
 
 _SYSTEM_PROBLEM = """\
 You are an expert CBSE Mathematics teacher and question-paper setter for \
-Classes 9–12. Your task is to create a **new, original** mathematics problem \
+Classes 10 and 12. Your task is to create a **new, original** mathematics problem \
 that is closely related to the provided source material but is NOT a copy of \
 any problem in it.
 

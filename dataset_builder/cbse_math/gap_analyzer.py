@@ -80,7 +80,7 @@ class CoverageReport:
         """
         result: list[tuple[ChapterCoverage, str]] = []
         for cc in self.gap_chapters:
-            for sub in cc.uncovered_subtopics or [s.subtopic for s in cc.chapter.subtopics]:
+            for sub in cc.uncovered_subtopics or cc.chapter.subtopics:
                 result.append((cc, sub))
         for cc in self.partial_chapters:
             for sub in cc.uncovered_subtopics:
@@ -165,7 +165,7 @@ class GapAnalyzer:
     Analyses coverage of the CBSE syllabus in a set of source text chunks.
 
     Args:
-        class_level: CBSE class to analyse against (9, 10, 11, or 12).
+        class_level: CBSE class to analyse against (10 or 12).
     """
 
     def __init__(self, class_level: ClassLevel = 12):

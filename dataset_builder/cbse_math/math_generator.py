@@ -15,7 +15,7 @@ Workflow
 
 Usage (CLI will wrap this; direct usage shown below)
 ------------------------------------------------------
-    from math.math_generator import MathGenerator, MathGenConfig
+    from cbse_math.math_generator import MathGenerator, MathGenConfig
 
     gen = MathGenerator()
     results = gen.run(
@@ -135,19 +135,27 @@ class MockMathLLM:
     }
 
     def complete(self, system_prompt: str, user_prompt: str, **kwargs: Any) -> str:
-        # Infer item_type from the user prompt / system prompt
-        if "fill_gap" in system_prompt.lower() or "gap" in user_prompt.lower():
-            item_type = "fill_gap"
-        elif "explanation" in system_prompt.lower() or "concept" in user_prompt.lower():
-            item_type = "explanation"
-        else:
-            item_type = "problem"
+        # Prefer explicit routing when caller provides expected item type.
+        item_type = kwargs.get("expected_item_type")
+        if item_type not in {"problem", "explanation", "fill_gap"}:
+            # Fallback inference from prompts.
+            if "fill_gap" in system_prompt.lower() or "gap" in user_prompt.lower():
+                item_type = "fill_gap"
+            elif "concept explanation" in system_prompt.lower():
+                item_type = "explanation"
+            else:
+                item_type = "problem"
 
         template = dict(self._MOCK_PROBLEMS[item_type])
 
         # 20 % chance of deliberately broken output to feed the validator
         if random.random() < 0.20:
-            template.pop("solution_latex", None)   # break the schema on purpose
+            required_fields = {
+                "problem": "solution_latex",
+                "explanation": "worked_example_latex",
+                "fill_gap": "solution_latex",
+            }
+            template.pop(required_fields[item_type], None)   # break schema on purpose
 
         return json.dumps(template, ensure_ascii=False)
 
@@ -216,6 +224,11 @@ class MathGenerator:
 
         cl = class_level or self.config.class_level
         chapters = chapters_for_class(cl)  # type: ignore[arg-type]
+        if not chapters:
+            raise ValueError(
+                f"No CBSE syllabus chapters registered for class {cl}. "
+                "Supported classes are 10 and 12."
+            )
 
         # ── 1. Ingest all inputs ──────────────────────────────────────────────
         all_chunks: list[str] = []
@@ -346,7 +359,9 @@ class MathGenerator:
         pt = random.choice(candidates)
         return pt, _marks_map.get(pt, 3)
 
-    def _call_llm_json(self, system: str, user: str) -> dict[str, Any] | None:
+    def _call_llm_json(
+        self, system: str, user: str, expected_item_type: str | None = None
+    ) -> dict[str, Any] | None:
         """Call the LLM and parse the JSON response."""
         try:
             raw = self._llm.complete(
@@ -354,6 +369,7 @@ class MathGenerator:
                 user_prompt=user,
                 temperature=self.config.temperature,
                 max_tokens=self.config.max_tokens,
+                expected_item_type=expected_item_type,
             )
             # Strip markdown fences if present
             raw = re.sub(r"```(?:json)?\s*", "", raw)
@@ -377,7 +393,7 @@ class MathGenerator:
         pt, marks = self._pick_problem_type(chapter.problem_types)
 
         system, user = build_problem_prompt(source_text, chapter, subtopic, difficulty, pt, marks)
-        content = self._call_llm_json(system, user)
+        content = self._call_llm_json(system, user, expected_item_type="problem")
         if content is None:
             return None
 
@@ -412,7 +428,7 @@ class MathGenerator:
         from cbse_math.math_schema import MathMetadata, MathSample
 
         system, user = build_explanation_prompt(chapter, subtopic, source_text)
-        content = self._call_llm_json(system, user)
+        content = self._call_llm_json(system, user, expected_item_type="explanation")
         if content is None:
             return None
 
@@ -448,7 +464,7 @@ class MathGenerator:
         from cbse_math.math_schema import MathMetadata, MathSample
 
         system, user = build_fill_gap_prompt(chapter, subtopic, gap_reason, source_text)
-        content = self._call_llm_json(system, user)
+        content = self._call_llm_json(system, user, expected_item_type="fill_gap")
         if content is None:
             return None
 

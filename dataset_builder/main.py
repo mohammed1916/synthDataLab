@@ -1189,8 +1189,8 @@ def health_check_cmd(mock: bool):
     "--class-level",
     default=12,
     show_default=True,
-    type=click.Choice(["9", "10", "11", "12"], case_sensitive=False),
-    help="CBSE class level to generate for.",
+    type=click.Choice(["10", "12"], case_sensitive=False),
+    help="CBSE class level to generate for (supported: 10, 12).",
 )
 @click.option(
     "--mock/--no-mock",
@@ -1236,8 +1236,8 @@ def math_generate_cmd(
     Generate CBSE Mathematics problems, explanations, and gap-fill items.
 
     INPUTS can be one or more PDF files (NCERT chapters, past papers), .txt,
-    or .json files.  If no inputs are given, generation runs from the CBSE
-    syllabus definitions alone (mock content only).
+    or .json files. If no inputs are given, generation runs from the CBSE
+    syllabus definitions alone.
 
     Examples::
 
@@ -1291,8 +1291,8 @@ def math_generate_cmd(
     "--class-level",
     default=12,
     show_default=True,
-    type=click.Choice(["9", "10", "11", "12"], case_sensitive=False),
-    help="CBSE class level to analyse against.",
+    type=click.Choice(["10", "12"], case_sensitive=False),
+    help="CBSE class level to analyse against (supported: 10, 12).",
 )
 def math_gap_analysis_cmd(inputs: tuple[str, ...], class_level: str):
     """
@@ -1321,6 +1321,17 @@ def math_gap_analysis_cmd(inputs: tuple[str, ...], class_level: str):
             if path.suffix.lower() == ".pdf":
                 records = ingest_pdf(str(path))
                 all_chunks.extend(r["content"] for r in records)
+            elif path.suffix.lower() == ".json":
+                data = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(data, list):
+                    for item in data:
+                        if isinstance(item, dict):
+                            text = item.get("content") or item.get("text") or str(item)
+                        else:
+                            text = str(item)
+                        all_chunks.append(text)
+                else:
+                    all_chunks.append(str(data))
             else:
                 all_chunks.append(path.read_text(encoding="utf-8", errors="replace"))
             _echo(f"  Ingested: {path.name}")
