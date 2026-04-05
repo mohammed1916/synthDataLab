@@ -238,7 +238,18 @@ reporter.report(raw_metrics, filtered_metrics, filter_report_dict)
 pip install -r requirements.txt
 ```
 
-Core dependencies: `jsonschema`, `rich`, `click`, `ollama`, `python-dotenv`
+Core dependencies: `jsonschema`, `rich`, `click`, `ollama`, `python-dotenv`, `SQLAlchemy`
+
+### Local database (free stack)
+
+This repo now uses a local SQLite database by default. No external Postgres server is required.
+The default database file is created at:
+
+```bash
+dataset_builder/data/synthdatalab.sqlite3
+```
+
+If you want to override the database target, set `DATABASE_URL` before running the backend.
 
 ### Run with Ollama (default)
 
@@ -263,6 +274,17 @@ python main.py run-all --mock
 ```
 
 Uses the built-in deterministic mock LLM — no server required, great for testing.
+
+### Run with Docker Compose
+
+From the repo root:
+
+```bash
+docker compose up --build
+```
+
+This starts the backend on `http://localhost:8000` and the frontend on `http://localhost:5173`.
+The backend uses the local SQLite database file under `dataset_builder/data` by default.
 
 ### Run with your own data
 
