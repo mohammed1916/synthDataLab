@@ -266,32 +266,48 @@ class DatasetGenerator:
         if not output or "_parse_error" in output:
             return 0.0
 
+        # Import task types here to avoid circular dependencies if any
+        from prompts.templates import TaskType
+
         required_fields = {
-            "qa": ["question", "answer", "evidence"],
-            "extraction": ["entities", "relations", "key_facts"],
-            "reasoning": ["reasoning_steps", "conclusion", "confidence_explanation"],
+            TaskType.QA: ["question", "answer", "evidence"],
+            TaskType.EXTRACTION: ["entities", "relations", "key_facts"],
+            TaskType.REASONING: ["reasoning_steps", "conclusion", "confidence_explanation"],
+            TaskType.REASONING_TRACE: ["think", "answer", "verification"],
+            TaskType.PREFERENCE: ["prompt", "chosen", "rejected", "preference_margin"],
         }
 
         required = required_fields.get(task_type, [])
         if not required:
-            return 0.75
+            return 0.1 # Very low confidence for unknown task types to trigger validation
 
-        present = sum(
-            1 for f in required if output.get(f) not in (None, "", [], {})
-        )
+        # Count fields that are present and have substantive content
+        present = 0
+        for f in required:
+            val = output.get(f)
+            if val is not None and val != "" and val != [] and val != {}:
+                # For complex fields like extraction entities, check if list is empty
+                if isinstance(val, list) and not val:
+                    continue
+                present += 1
+
         ratio = present / len(required)
 
         if ratio == 1.0:
-            # Check for obviously thin content
-            if task_type == "qa":
+            # Check for obviously thin content per task type
+            if task_type == TaskType.QA:
                 answer_len = len(str(output.get("answer", "")))
                 if answer_len < 5:
                     return 0.45
-            if task_type == "reasoning":
+            if task_type == TaskType.REASONING:
                 steps = output.get("reasoning_steps", [])
                 if len(steps) < 2:
                     return 0.50
-            return 0.90 + (0.10 * ratio)   # ≈ 0.90–1.0
+            if task_type == TaskType.REASONING_TRACE:
+                think = str(output.get("think", ""))
+                if "<think>" not in think or "</think>" not in think or len(think) < 100:
+                    return 0.60 # Trace is likely too short or malformed
+            return 0.90 + (0.10 * ratio)   # ≈ 0.95-1.0
         elif ratio >= 0.67:
             return 0.60 + (0.20 * ratio)   # ≈ 0.73–0.80
         else:

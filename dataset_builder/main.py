@@ -251,8 +251,8 @@ def step_validate(
                 timeout=cfg.llm.request_timeout,
                 max_retries=cfg.llm.max_retries,
             )
-        except Exception:
-            pass  # fall back to heuristic mode silently
+        except Exception as exc:
+            logger.warning("LLM reviewer could not connect to Ollama (falling back to mock heuristics): %s", exc)
     llm_reviewer = LLMReviewer(llm_client=_reviewer_client)
     annotated = llm_reviewer.review_batch(annotated)
 

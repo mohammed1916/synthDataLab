@@ -289,21 +289,25 @@ class PipelineController:
             self._update_status(run_id, RunStatusEnum.RUNNING, pipeline_stage="generate")
 
             # 2. Generate
-            if run_status.agent and MultiAgentOrchestrator is not None:
-                orch_cfg = OrchestratorConfig(
-                    steering_mode=SteeringMode(run_status.steering),
-                    critic_pass_threshold=run_status.threshold,
-                    critic_review_threshold=max(0.0, run_status.threshold - 0.25),
-                    show_dashboard=False,
-                )
-                orch = MultiAgentOrchestrator(config=cfg, orch_config=orch_cfg)
-                orch_result = orch.run(ingestion_results)
-                raw_samples = [DatasetSample.from_dict(d) for d in (orch_result.accepted + orch_result.fix_required)]
-                if getattr(orch_result, 'critic_scores', None):
-                    _save_jsonl(
-                        [cs.to_dict() for cs in orch_result.critic_scores],
-                        run_dir / "critic_scores.jsonl",
+            if run_status.agent:
+                if MultiAgentOrchestrator is not None:
+                    orch_cfg = OrchestratorConfig(
+                        steering_mode=SteeringMode(run_status.steering),
+                        critic_pass_threshold=run_status.threshold,
+                        critic_review_threshold=max(0.0, run_status.threshold - 0.25),
+                        show_dashboard=False,
                     )
+                    orch = MultiAgentOrchestrator(config=cfg, orch_config=orch_cfg)
+                    orch_result = orch.run(ingestion_results)
+                    raw_samples = [DatasetSample.from_dict(d) for d in (orch_result.accepted + orch_result.fix_required)]
+                    if getattr(orch_result, 'critic_scores', None):
+                        _save_jsonl(
+                            [cs.to_dict() for cs in orch_result.critic_scores],
+                            run_dir / "critic_scores.jsonl",
+                        )
+                else:
+                    logger.warning("Agent mode requested but MultiAgentOrchestrator is not available (ImportError). Falling back to standard generation.")
+                    raw_samples = step_generate(cfg, ingestion_results)
             else:
                 raw_samples = step_generate(cfg, ingestion_results)
 
@@ -353,8 +357,8 @@ class PipelineController:
                 if latest.is_symlink() or latest.exists():
                     latest.unlink()
                 latest.symlink_to(Path("runs") / run_id)
-            except OSError:
-                pass
+            except OSError as exc:
+                logger.warning("Failed to update 'latest' symlink: %s", exc)
 
             outputs = {
                 "raw": str(cfg.storage.raw_path()),
@@ -404,6 +408,13 @@ class PipelineController:
             run_status = self._runs.get(run_id)
             if not run_status:
                 return
+
+            # If the run was already canceled or failed, do not allow moving back to RUNNING/PENDING
+            if run_status.status in {RunStatusEnum.CANCELED, RunStatusEnum.FAILED}:
+                if status not in {RunStatusEnum.CANCELED, RunStatusEnum.FAILED}:
+                    logger.debug("Ignoring status update to %s for %s (already %s)", status, run_id, run_status.status)
+                    return
+
             run_status.status = status
             run_status.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
             if pipeline_stage is not None:

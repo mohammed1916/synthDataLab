@@ -152,16 +152,28 @@ export default function App() {
       setInputPath('');
       fetchRuns();
 
+      // Start polling for this specific run
+      const runId = res.data.run_id;
       const interval = setInterval(async () => {
-        await fetchRunDetails(res.data.run_id);
-        const runResponse = await axios.get(`${API_BASE}/runs/${res.data.run_id}`);
-        if (runResponse.data.status === 'succeeded' || runResponse.data.status === 'failed') {
+        try {
+          const runResponse = await axios.get(`${API_BASE}/runs/${runId}`);
+          const currentRun = runResponse.data;
+          
+          // Update selected run if it's the one we are watching
+          setSelectedRun((prev) => (prev?.run_id === runId ? currentRun : prev));
+          
+          if (currentRun.status === 'succeeded' || currentRun.status === 'failed' || currentRun.status === 'canceled') {
+            clearInterval(interval);
+            setSubmitStatus(`Run ${runId} ${currentRun.status}`);
+            await fetchRunLogs(runId);
+            fetchRuns();
+          }
+        } catch (err) {
+          console.error('Polling error', err);
           clearInterval(interval);
-          setSubmitStatus(`Run ${runResponse.data.run_id} ${runResponse.data.status}`);
-          await fetchRunLogs(runResponse.data.run_id);
-          fetchRuns();
         }
       }, 2000);
+
     } catch (err) {
       console.error('submitRun', err);
       setSubmitStatus('Failed to start run.');
