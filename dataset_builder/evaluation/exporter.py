@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import logging
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -195,3 +196,85 @@ def export_labelstudio(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     logger.info("Exported %d tasks to Label Studio format.", len(out))
     return out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Hugging Face / Benchmark export
+# ─────────────────────────────────────────────────────────────────────────────
+
+def export_huggingface(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Convert dataset records to a flattened format suitable for Hugging Face Datasets.
+
+    Standardises the schema:
+    - ``instruction``: The system instruction plus input context
+    - ``input``: The specific input text (if any)
+    - ``output``: The serialised model response
+    - ``metadata_*``: Flattened metadata fields (confidence, run_id, etc)
+
+    Args:
+        records: List of DatasetSample-compatible dicts.
+
+    Returns:
+        List of flattened dicts.
+    """
+    out: list[dict[str, Any]] = []
+    for rec in records:
+        task_type = rec.get("task_type", "unknown")
+        input_text = str(rec.get("input", ""))
+        output = rec.get("output", {})
+        metadata = rec.get("metadata", {})
+
+        # Standardise the "instruction" and "output" based on task type
+        # to match common fine-tuning formats (Alpaca / Instruction-tune)
+        instruction = rec.get("instruction", "")
+        
+        # Flattened sample
+        sample: dict[str, Any] = {
+            "instruction": instruction,
+            "input": input_text,
+            "task_type": task_type,
+            "id": rec.get("id", ""),
+            "source": rec.get("source_file", ""),
+            "confidence": float(metadata.get("confidence", 0.0)),
+            "run_id": metadata.get("run_id", ""),
+        }
+
+        # Add task-specific outputs as columns for easier benchmarking
+        if isinstance(output, dict):
+            for k, v in output.items():
+                # Avoid collision with standard columns
+                col_name = f"output_{k}"
+                if isinstance(v, (list, dict)):
+                    sample[col_name] = json.dumps(v, ensure_ascii=False)
+                else:
+                    sample[col_name] = v
+                    
+            # Also provide a single serialised 'output' string
+            sample["output"] = json.dumps(output, ensure_ascii=False)
+        else:
+            sample["output"] = str(output)
+
+        out.append(sample)
+
+    logger.info("Exported %d samples to Hugging Face / Benchmark format.", len(out))
+    return out
+
+
+def save_parquet(records: list[dict[str, Any]], output_path: str | Path) -> bool:
+    """
+    Try to save records as a Parquet file using pandas/pyarrow.
+    
+    Returns True if successful, False if dependencies are missing.
+    """
+    try:
+        import pandas as pd
+        df = pd.DataFrame(records)
+        df.to_parquet(output_path, index=False, engine="pyarrow")
+        return True
+    except ImportError:
+        logger.warning("Optional dependencies 'pandas' and 'pyarrow' are required for Parquet export.")
+        return False
+    except Exception as exc:
+        logger.error("Failed to write Parquet file: %s", exc)
+        return False

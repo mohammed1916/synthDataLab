@@ -46,6 +46,12 @@ from analysis.error_analyzer import ErrorAnalyzer  # noqa: E402
 from config import Config  # noqa: E402
 from evaluation.metrics import compute_metrics  # noqa: E402
 from evaluation.reporter import MetricsReporter  # noqa: E402
+from evaluation.exporter import (  # noqa: E402
+    export_argilla,
+    export_huggingface,
+    export_labelstudio,
+    save_parquet,
+)
 from filtering.fingerprint_store import FingerprintStore  # noqa: E402
 from filtering.pipeline import FilteringPipeline  # noqa: E402
 from generation.evolver import EvolveConfig, PromptEvolver  # noqa: E402
@@ -1399,6 +1405,91 @@ def math_gap_analysis_cmd(inputs: tuple[str, ...], class_level: str, output_path
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(report.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
         _echo(f"  Coverage JSON saved → [cyan]{out}[/cyan]")
+
+
+@cli.command("export")
+@click.option(
+    "--format",
+    type=click.Choice(["argilla", "labelstudio", "huggingface", "parquet"], case_sensitive=False),
+    default="huggingface",
+    show_default=True,
+    help="Target export format.",
+)
+@click.option(
+    "--dataset",
+    "dataset_path",
+    default=None,
+    help="Path to filtered dataset. Defaults to latest run.",
+)
+@click.option(
+    "--output",
+    "output_path",
+    default=None,
+    help="Path to save exported file. Defaults to data/exported.<format>",
+)
+def export_cmd(format: str, dataset_path: str | None, output_path: str | None):
+    """
+    Export the filtered dataset to external formats (Hugging Face, Parquet, etc.).
+
+    Standardises the schema and serialises nested fields for easy benchmarking
+    or annotation tool import.
+
+    Example::
+
+        python main.py export --format parquet --output my_bench.parquet
+    """
+    cfg = Config()
+    
+    # 1. Locate dataset
+    if dataset_path:
+        path = Path(dataset_path)
+    else:
+        path = cfg.storage.filtered_path()
+        if not path.exists():
+            # Fall back to 'latest' symlink
+            latest = cfg.storage.data_dir / "latest" / "filtered_dataset.jsonl"
+            if latest.exists():
+                path = latest
+            else:
+                _echo(f"[red]Filtered dataset not found at {path}. Run 'filter' first.[/red]")
+                sys.exit(1)
+
+    _header(f"EXPORTING TO {format.upper()}")
+    records = _load_jsonl(path)
+    _echo(f"  Source: {path.name} ({len(records)} records)")
+
+    # 2. Convert
+    f = format.lower()
+    if f == "argilla":
+        exported = export_argilla(records)
+        ext = "jsonl"
+        res = json.dumps(exported, indent=2, ensure_ascii=False) if False else "\n".join(json.dumps(r, ensure_ascii=False) for r in exported)
+    elif f == "labelstudio":
+        exported = export_labelstudio(records)
+        ext = "json"
+        res = json.dumps(exported, indent=2, ensure_ascii=False)
+    elif f == "huggingface":
+        exported = export_huggingface(records)
+        ext = "jsonl"
+        res = "\n".join(json.dumps(r, ensure_ascii=False) for r in exported)
+    elif f == "parquet":
+        exported = export_huggingface(records)
+        out_path = Path(output_path) if output_path else cfg.storage.data_dir / "exported.parquet"
+        success = save_parquet(exported, out_path)
+        if success:
+            _echo(f"  [green]Successfully saved Parquet dataset → {out_path}[/green]")
+            return
+        else:
+            _echo("[red]Parquet export failed. Ensure 'pandas' and 'pyarrow' are installed.[/red]")
+            sys.exit(1)
+    else:
+        _echo(f"[red]Unknown format: {format}[/red]")
+        sys.exit(1)
+
+    # 3. Save
+    out = Path(output_path) if output_path else cfg.storage.data_dir / f"exported.{ext}"
+    out.write_text(res, encoding="utf-8")
+    _echo(f"  [green]Export complete → {out}[/green]")
 
 
 @cli.command("math-latex-preview")
