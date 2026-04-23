@@ -13,6 +13,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://synthuser:synthpass@db:5432/synthdatalab
 
   frontend:
     image: node:20
@@ -23,3 +24,19 @@ services:
     ports:
       - 5173:5173
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=synthuser
+      - POSTGRES_PASSWORD=synthpass
+      - POSTGRES_DB=synthdatalab
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

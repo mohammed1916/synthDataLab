@@ -85,13 +85,13 @@ export default function App() {
   };
 
   const pipelineSteps = [
-    {key: 'ingest', label: 'Ingest'},
-    {key: 'generate', label: 'Generate'},
-    {key: 'validate', label: 'Validate'},
-    {key: 'filter', label: 'Filter'},
-    {key: 'evaluate', label: 'Evaluate'},
-    {key: 'analyze', label: 'Analyze'},
-    {key: 'complete', label: 'Complete'},
+    { key: 'ingest', label: 'Ingest' },
+    { key: 'generate', label: 'Generate' },
+    { key: 'validate', label: 'Validate' },
+    { key: 'filter', label: 'Filter' },
+    { key: 'evaluate', label: 'Evaluate' },
+    { key: 'analyze', label: 'Analyze' },
+    { key: 'complete', label: 'Complete' },
   ];
 
   const statusToStage = (status) => {
@@ -152,28 +152,16 @@ export default function App() {
       setInputPath('');
       fetchRuns();
 
-      // Start polling for this specific run
-      const runId = res.data.run_id;
       const interval = setInterval(async () => {
-        try {
-          const runResponse = await axios.get(`${API_BASE}/runs/${runId}`);
-          const currentRun = runResponse.data;
-          
-          // Update selected run if it's the one we are watching
-          setSelectedRun((prev) => (prev?.run_id === runId ? currentRun : prev));
-          
-          if (currentRun.status === 'succeeded' || currentRun.status === 'failed' || currentRun.status === 'canceled') {
-            clearInterval(interval);
-            setSubmitStatus(`Run ${runId} ${currentRun.status}`);
-            await fetchRunLogs(runId);
-            fetchRuns();
-          }
-        } catch (err) {
-          console.error('Polling error', err);
+        await fetchRunDetails(res.data.run_id);
+        const runResponse = await axios.get(`${API_BASE}/runs/${res.data.run_id}`);
+        if (runResponse.data.status === 'succeeded' || runResponse.data.status === 'failed') {
           clearInterval(interval);
+          setSubmitStatus(`Run ${runResponse.data.run_id} ${runResponse.data.status}`);
+          await fetchRunLogs(runResponse.data.run_id);
+          fetchRuns();
         }
       }, 2000);
-
     } catch (err) {
       console.error('submitRun', err);
       setSubmitStatus('Failed to start run.');
@@ -372,9 +360,8 @@ export default function App() {
                   return (
                     <div
                       key={step.key}
-                      className={`timeline-step ${isActive ? 'active' : ''} ${
-                        step.key === 'failed' && isFailed ? 'failed' : ''
-                      } ${step.key === 'canceled' && isCanceled ? 'canceled' : ''}`}
+                      className={`timeline-step ${isActive ? 'active' : ''} ${step.key === 'failed' && isFailed ? 'failed' : ''
+                        } ${step.key === 'canceled' && isCanceled ? 'canceled' : ''}`}
                     >
                       <span>{step.label}</span>
                     </div>
